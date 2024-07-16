@@ -15,6 +15,7 @@ rule token = parse
 | '-'  { MINUS }
 | '*'  { TIMES }
 | '/'  { DIVIDE }
+| digit+  { NUMBER (int_of_string (Lexing.lexeme lexbuf)) }
 | "<"  { LT }
 | "<=" { LE }
 | ">"  { GT }
@@ -35,6 +36,6 @@ rule token = parse
 | "if"    { IF }
 | "then"  { THEN }
 | "else"  { ELSE }
-| digit+  { NUMBER (int_of_string (Lexing.lexeme lexbuf)) }
 | eof     { EOF }
+| letter+ { VARIANT (Lexing.lexeme lexbuf) }
 | _       { failwith ("unknown token: " ^ Lexing.lexeme lexbuf) }
