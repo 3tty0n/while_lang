@@ -19,11 +19,11 @@ type p =
   | Not of p
   | And of p * p
   | Or of p * p
-  | LT of p * p
-  | LE of p * p
-  | EQ of p * p
-  | GT of p * p
-  | GE of p * p
+  | LT of a * a
+  | LE of a * a
+  | EQ of a * a
+  | GT of a * a
+  | GE of a * a
 
 (* statements *)
 type s =
