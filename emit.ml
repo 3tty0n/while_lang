@@ -8,23 +8,37 @@ type t =
   | MINUS
   | TIMES
   | DIV
+  | Label of string
+  | GoTo of string
+  | GoFalse of string
+  | True
+  | False
+  | EQ
+  | LT
+  | LE
+  | GT
+  | GE
 
-let print_t t =
+let print_t oc t =
   match t with
-  | LValue (id) -> print_string "lvalue "; print_string id; print_newline ()
-  | RValue (id) -> print_string "rvalue "; print_string id; print_newline ()
-  | Push (n) -> print_string "push "; print_int n; print_newline ()
-  | PLUS -> print_string "+"; print_newline ()
-  | MINUS -> print_string "-"; print_newline ()
-  | TIMES -> print_string "*"; print_newline ()
-  | DIV -> print_string "/"; print_newline ()
+  | LValue (id) -> Printf.fprintf oc "lvalue\t%s\n" id
+  | RValue (id) -> Printf.fprintf oc "rvalue\t%s\n" id
+  | Push (n) -> Printf.fprintf oc "push\t%d\n" n
+  | PLUS -> Printf.fprintf oc "+\n"
+  | MINUS -> Printf.fprintf oc "-\n"
+  | TIMES -> Printf.fprintf oc "*\n"
+  | DIV -> Printf.fprintf oc "/\n"
+  | LT -> Printf.fprintf oc "<\n"
+  | Label (l) -> Printf.fprintf oc "label\t%s\n" l
+  | GoFalse (l) -> Printf.fprintf oc "gofalse\t%s\n" l
+  | GoTo (l) -> Printf.fprintf oc "goto\t%s\n" l
 
-let rec print_code code =
+let rec print_code oc code =
   match code with
   | [] -> []
-  | hd :: tl -> print_t hd; print_code tl
+  | hd :: tl -> print_t oc hd; print_code oc tl
 
-let rec compile_arith arith =
+let rec compile_arith (arith : a) : t list =
   match arith with
   | Var id -> [RValue (id)]
   | Num n -> [Push n]
@@ -37,10 +51,26 @@ let rec compile_arith arith =
   | Mul (lhs, rhs) ->
     (compile_arith lhs) @ (compile_arith rhs) @ [TIMES]
 
-let rec compile_statement statement =
+let compile_predicate (predicate : p) : t list =
+  match predicate with
+  | True -> [True]
+  | False -> [False]
+  | EQ (a1, a2) -> (compile_arith a1) @ (compile_arith a2) @ [EQ]
+  | LT (a1, a2) -> (compile_arith a1) @ (compile_arith a2) @ [LT]
+  | LE (a1, a2) -> (compile_arith a1) @ (compile_arith a2) @ [LE]
+  | GT (a1, a2) -> (compile_arith a1) @ (compile_arith a2) @ [GT]
+  | GE (a1, a2) -> (compile_arith a1) @ (compile_arith a2) @ [GE]
+
+let rec compile_statement (statement : s) : t list =
   match statement with
   | Assign (id, arith) ->
     LValue (id) :: (compile_arith arith)
   | Skip -> []
+  | Block (stmt) ->
+    compile_statement stmt
   | Seq (stmt1, stmt2) ->
     (compile_statement stmt1) @ (compile_statement stmt2)
+  | While (pred, stmt) ->
+    [Label ("test")] @ (compile_predicate pred) @
+    [GoFalse ("out")] @ (compile_statement stmt) @ [GoTo ("test")] @
+    [Label ("out")]

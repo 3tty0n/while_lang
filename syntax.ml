@@ -29,6 +29,7 @@ type p =
 type s =
   | Assign of id * a
   | Skip
+  | Block of s
   | Seq of s * s
   | If of p * s * s
   | While of p * s

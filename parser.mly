@@ -1,5 +1,5 @@
 %{
-
+  open Syntax
 %}
 
 %token BEGIN END
@@ -34,14 +34,18 @@
 %%
 
 start:
-| statement EOF  { $1 }
+| statements EOF { $1 }
 
 statement:
-| VARIANT ASSIGN arith  { Assign ($1, $3) }
 | SKIP { Skip }
-| statement SEMICOLON statement { Seq ($1, $3) }
+| VARIANT ASSIGN arith { Assign ($1, $3) }
+| BEGIN statements END { Block ($2) }
 | IF predicate THEN statement ELSE statement { If ($2, $4, $6) }
 | WHILE predicate DO statement { While ($2, $4) }
+
+statements:
+| statement SEMICOLON { $1 }
+| statement SEMICOLON statements { Seq ($1, $3) }
 
 predicate:
 | TRUE  { True }
