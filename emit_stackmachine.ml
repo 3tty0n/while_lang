@@ -73,5 +73,5 @@ let print_t oc t =
 
 let rec print_code oc code =
   match code with
-  | [] -> []
+  | [] -> ()
   | hd :: tl -> print_t oc hd; print_code oc tl
