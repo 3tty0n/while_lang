@@ -11,8 +11,11 @@ type t =
   | Label of string
   | GoTo of string
   | GoFalse of string
-  | True
-  | False
+  | NOT
+  | AND
+  | OR
+  | TRUE
+  | FALSE
   | EQ
   | LT
   | LE
@@ -32,11 +35,14 @@ let rec compile_arith (arith : a) : t list =
   | Mul (lhs, rhs) ->
     (compile_arith lhs) @ (compile_arith rhs) @ [TIMES]
 
-let compile_predicate (predicate : p) : t list =
+let rec compile_predicate (predicate : p) : t list =
   match predicate with
-  | True -> [True]
-  | False -> [False]
-  | EQ (a1, a2) -> (compile_arith a1) @ (compile_arith a2) @ [EQ]
+  | True -> [TRUE]
+  | False -> [FALSE]
+  | Not (p) -> (compile_predicate p) @ [NOT]
+  | And (p1, p2) -> (compile_predicate p1) @ (compile_predicate p2) @ [AND]
+  | Or (p1, p2) -> (compile_predicate p1) @ (compile_predicate p2) @ [OR]
+  | EQ (a1, a2) -> (compile_arith a1) @ (compile_arith a2) @ [OR]
   | LT (a1, a2) -> (compile_arith a1) @ (compile_arith a2) @ [LT]
   | LE (a1, a2) -> (compile_arith a1) @ (compile_arith a2) @ [LE]
   | GT (a1, a2) -> (compile_arith a1) @ (compile_arith a2) @ [GT]

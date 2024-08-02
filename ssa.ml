@@ -1,13 +1,19 @@
+(* SSA 変換 (α変換) を行い、全ての変数にユニークなIDを付与する *)
+
 open Syntax
 
+(* 変数名からユニークなIDへの写像を宣言 *)
 module M = Map.Make(String)
 
 let id_num = ref (-1)
 
+(* 変数名からユニークな ID を生成する *)
 let gen_id s =
   incr id_num;
   s ^ "." ^ (string_of_int !id_num)
 
+(* 写像 M から、変数 x に対応するユニーク ID を取得する *)
+(* ユニークな ID が存在しなければ新たな ID を生成する   *)
 let find_or_gen_id (x : id) (env : id M.t) =
   try
     M.find x env, env
@@ -24,26 +30,37 @@ let rec assign_id_arith (arith : Syntax.a) (env : id M.t) =
     let id', env = find_or_gen_id id env in
     Var (id'), env
   | Add (lhs, rhs) ->
-    let lhs, _ = assign_id_arith lhs env in
-    let rhs, _ = assign_id_arith rhs env  in
+    let lhs, env = assign_id_arith lhs env in
+    let rhs, env = assign_id_arith rhs env  in
     Add (lhs, rhs), env
   | Sub (lhs, rhs) ->
-    let lhs, _ = assign_id_arith lhs env in
-    let rhs, _ = assign_id_arith rhs env  in
+    let lhs, env = assign_id_arith lhs env in
+    let rhs, env = assign_id_arith rhs env  in
     Sub (lhs, rhs), env
   | Mul (lhs, rhs) ->
-    let lhs, _ = assign_id_arith lhs env in
-    let rhs, _ = assign_id_arith rhs env  in
+    let lhs, env = assign_id_arith lhs env in
+    let rhs, env = assign_id_arith rhs env  in
     Mul (lhs, rhs), env
   | Div (lhs, rhs) ->
-    let lhs, _ = assign_id_arith lhs env in
-    let rhs, _ = assign_id_arith rhs env  in
+    let lhs, env = assign_id_arith lhs env in
+    let rhs, env = assign_id_arith rhs env  in
     Div (lhs, rhs), env
 
 
 let rec assign_id_pred (pred : Syntax.p) (env : id M.t) =
   match pred with
-  | True | False | Not _ | And _ | Or _ -> pred, env
+  | True | False -> pred, env
+  | Not p ->
+    let p, env = assign_id_pred p env in
+    Not (p), env
+  | And (p1, p2) ->
+    let p1, env = assign_id_pred p1 env in
+    let p2, env = assign_id_pred p2 env in
+    And (p1, p2), env
+  | Or (p1, p2) ->
+    let p1, env = assign_id_pred p1 env in
+    let p2, env = assign_id_pred p2 env in
+    Or (p1, p2), env
   | LT (a1, a2) ->
     let a1, env = assign_id_arith a1 env in
     let a2, env = assign_id_arith a2 env in
