@@ -106,7 +106,7 @@ $ make clean
 While 言語を `.pyc` へコンパイルする
 
 ```shell
-./while_lang test/assign.while
+$ ./while_lang test/assign.while
 ```
 
 `.pyc` を Python2 インタプリタで実行する
