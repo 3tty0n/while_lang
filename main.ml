@@ -1,8 +1,10 @@
 let assemble name oc l =
-  Assemble_pyc.assemble oc
-    (Emit_pyc.compile name
-       (Virtual_stack.compile_stack
-          (Parser.start Lexer.token l)))
+  let syntax = Parser.start Lexer.token l in
+  let ops_stack = Virtual_stack.compile_stack syntax in
+  let ops_pyc = Emit_pyc.compile_pyc ops_stack in
+  Pycode.print_pyc_list ops_pyc;
+  let pycode = Emit_pyc.compile name ops_stack in
+  Assemble_pyc.assemble oc pycode
 
 let print_stack_code l =
   Virtual_stack.print_code stdout
@@ -24,8 +26,8 @@ let main filename =
   close_out oc
 
 let test () =
-  string "assign.pyc" "x := 1; x := x + 1; print x;";
-  string "loop.pyc" "i := 1; while i < 10 do begin i := i + 1; end; print i;"
+  let s1 = "while i < 10 do i := i + 1;" in
+  print_stack_code (Lexing.from_string s1)
 
 let () =
   if (Array.length Sys.argv) > 1 then
@@ -33,5 +35,6 @@ let () =
     main filename
   else (
     Printf.eprintf "[usage] %s filename.while\n" Sys.argv.(0);
+    test ();
     exit(1)
   )

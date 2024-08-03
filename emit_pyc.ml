@@ -75,14 +75,16 @@ let generate_pycode name varenv constenv pyc =
     }
   )
 
-let compile_stack ops =
-    reset ();
-    let pyc, varenv, constenv = compile_stack_pyc [] [] [] ops in
-    resolve_label pyc
+let compile_pyc ops =
+  reset ();
+  let pyc, varenv, constenv = compile_stack_pyc [] [] [] ops in
+  let varenv, constenv = List.rev varenv, List.rev constenv in
+  let pyc = resolve_label pyc in
+  pyc
 
 let compile name ops =
-    reset ();
-    let pyc, varenv, constenv = compile_stack_pyc [] [] [] ops in
-    let varenv, constenv = List.rev varenv, List.rev constenv in
-    let pyc = resolve_label pyc in
-    generate_pycode name varenv constenv pyc
+  reset ();
+  let pyc, varenv, constenv = compile_stack_pyc [] [] [] ops in
+  let varenv, constenv = List.rev varenv, List.rev constenv in
+  let pyc = resolve_label pyc in
+  generate_pycode name varenv constenv pyc
