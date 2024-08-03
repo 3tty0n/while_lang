@@ -2,14 +2,15 @@ open Syntax
 
 (* 仮想スタックマシンの命令の宣言 *)
 type t =
-  | LValue of string
+  | LPush of string
   | RValue of string
   | Push of int
   | PLUS
   | MINUS
   | TIMES
   | DIV
-  | Label of string
+  | LabelTest of string * string (* test, out *)
+  | LabelOut of string * string  (* test, out *)
   | GoTo of string
   | GoFalse of string
   | NOT
@@ -64,7 +65,7 @@ let reset () =
 let rec compile_statement (statement : s) : t list =
   match statement with
   | Assign (id, arith) ->
-    LValue (id) :: (compile_arith arith)
+    (compile_arith arith) @ [LPush (id)]
   | Skip -> []
   | Block (stmt) ->
     compile_statement stmt
@@ -73,9 +74,9 @@ let rec compile_statement (statement : s) : t list =
   | While (pred, stmt) ->
     let test = gen_label () in
     let out = gen_label () in
-    [Label (test)] @ (compile_predicate pred) @
+    [LabelTest (test, out)] @ (compile_predicate pred) @
     [GoFalse (out)] @ (compile_statement stmt) @ [GoTo (test)] @
-    [Label (out)]
+    [LabelOut (test, out)]
   | Print (arith) ->
     (compile_arith arith) @ [PRINT]
   | _ -> failwith "Unsupported statement"
@@ -88,7 +89,7 @@ let compile_stack statement =
 
 let print_t oc t =
   match t with
-  | LValue (id) -> Printf.fprintf oc "lvalue\t%s\n" id
+  | LPush (id) -> Printf.fprintf oc "lpush\t%s\n" id
   | RValue (id) -> Printf.fprintf oc "rvalue\t%s\n" id
   | Push (n) -> Printf.fprintf oc "push\t%d\n" n
   | PLUS -> Printf.fprintf oc "+\n"
@@ -105,7 +106,8 @@ let print_t oc t =
   | OR -> Printf.fprintf oc "or\n"
   | TRUE-> Printf.fprintf oc "true\n"
   | FALSE-> Printf.fprintf oc "false\n"
-  | Label (l) -> Printf.fprintf oc "label\t%s\n" l
+  | LabelTest (l, m) -> Printf.fprintf oc "label\t%s\n" l
+  | LabelOut (l, m) -> Printf.fprintf oc "label\t%s\n" m
   | GoFalse (l) -> Printf.fprintf oc "gofalse\t%s\n" l
   | GoTo (l) -> Printf.fprintf oc "goto\t%s\n" l
   | PRINT -> Printf.fprintf oc "print\n"
