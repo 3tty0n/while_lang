@@ -1,5 +1,6 @@
 open Syntax
 
+(* 仮想スタックマシンの命令の宣言 *)
 type t =
   | LValue of string
   | RValue of string
@@ -21,7 +22,9 @@ type t =
   | LE
   | GT
   | GE
+  | PRINT
 
+(* While言語の変数、数値や演算を仮想スタックマシンの命令へ変換する *)
 let rec compile_arith (arith : a) : t list =
   match arith with
   | Var id -> [RValue (id)]
@@ -35,6 +38,7 @@ let rec compile_arith (arith : a) : t list =
   | Mul (lhs, rhs) ->
     (compile_arith lhs) @ (compile_arith rhs) @ [TIMES]
 
+(* While言語の条件式を仮想スタックマシンの命令へ変換する *)
 let rec compile_predicate (predicate : p) : t list =
   match predicate with
   | True -> [TRUE]
@@ -48,6 +52,15 @@ let rec compile_predicate (predicate : p) : t list =
   | GT (a1, a2) -> (compile_arith a1) @ (compile_arith a2) @ [GT]
   | GE (a1, a2) -> (compile_arith a1) @ (compile_arith a2) @ [GE]
 
+let count = ref (-1)
+let gen_label () =
+  count := !count + 1;
+  "L." ^ (string_of_int !count)
+
+let reset () =
+  count := (-1)
+
+(* While言語の文を仮想スタックマシンの命令へ変換する *)
 let rec compile_statement (statement : s) : t list =
   match statement with
   | Assign (id, arith) ->
@@ -58,9 +71,19 @@ let rec compile_statement (statement : s) : t list =
   | Seq (stmt1, stmt2) ->
     (compile_statement stmt1) @ (compile_statement stmt2)
   | While (pred, stmt) ->
-    [Label ("test")] @ (compile_predicate pred) @
-    [GoFalse ("out")] @ (compile_statement stmt) @ [GoTo ("test")] @
-    [Label ("out")]
+    let test = gen_label () in
+    let out = gen_label () in
+    [Label (test)] @ (compile_predicate pred) @
+    [GoFalse (out)] @ (compile_statement stmt) @ [GoTo (test)] @
+    [Label (out)]
+  | Print (arith) ->
+    (compile_arith arith) @ [PRINT]
+  | _ -> failwith "Unsupported statement"
+
+
+let compile_stack statement =
+  reset ();
+  compile_statement statement
 
 
 let print_t oc t =
@@ -73,9 +96,19 @@ let print_t oc t =
   | TIMES -> Printf.fprintf oc "*\n"
   | DIV -> Printf.fprintf oc "/\n"
   | LT -> Printf.fprintf oc "<\n"
+  | LE -> Printf.fprintf oc "<=\n"
+  | GT -> Printf.fprintf oc ">\n"
+  | GE -> Printf.fprintf oc ">=\n"
+  | EQ -> Printf.fprintf oc ">=\n"
+  | NOT -> Printf.fprintf oc "not\n"
+  | AND -> Printf.fprintf oc "and\n"
+  | OR -> Printf.fprintf oc "or\n"
+  | TRUE-> Printf.fprintf oc "true\n"
+  | FALSE-> Printf.fprintf oc "false\n"
   | Label (l) -> Printf.fprintf oc "label\t%s\n" l
   | GoFalse (l) -> Printf.fprintf oc "gofalse\t%s\n" l
   | GoTo (l) -> Printf.fprintf oc "goto\t%s\n" l
+  | PRINT -> Printf.fprintf oc "print\n"
 
 let rec print_code oc code =
   match code with
