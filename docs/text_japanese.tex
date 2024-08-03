@@ -197,7 +197,7 @@ lpush  a
 rvalue a
 rvalue i
 *
-lvalue a
+lpush  a
 rvalue i
 push   1
 lpush  i
@@ -209,19 +209,18 @@ lpush  i
 
   \fbox{出力}
 
-  \begin{lstlisting}
-label L.0
-rvalue i
-push 10
+\begin{lstlisting}
+label	L.0
+rvalue	i
+push	10
 <
-gofalse out
-lvalue  i
-rvalue  i
-push    1
+gofalse	L.1
+rvalue	i
+push	1
 +
-lpush   i
-goto    L.0
-label   L.1
+lpush	i
+goto	L.0
+label	L.1
   \end{lstlisting}
 
 \end{enumerate}
