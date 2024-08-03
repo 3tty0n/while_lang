@@ -72,7 +72,7 @@ $ make clean
 
 ## 開発環境
 
-本実験では OCaml を用います。OCaml は macOS では Homebrew, Windows では cygwin を用いたイ
+本コンパイラの実装には OCaml を用います。OCaml は macOS では Homebrew, Windows では cygwin を用いたイ
 ンストーラが提供されています。
 
 ### macOS
