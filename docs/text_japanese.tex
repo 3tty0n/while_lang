@@ -279,9 +279,29 @@ label	L.1
 \subsection{2日目: 仮想スタック機械への簡易コンパイラの作成}
 
 2日目は、While言語から仮想スタック機械へのコンパイラを製作します。
-配布するソースコードは大部分が実装されていますが、パーサーが代入文、\verb|begin| --
-\verb|end| 文、そして \verb|while| 文を認識しません。\verb|parser.mly| と \verb|lexer.mll|
-を改造し、上記の文を認識できるよう改良してください。
+配布するソースコードは大部分が実装されていますが、パーサーが足し算と $<$ 以外の演算を認識
+しません。まず、引き算、かけ算、割り算、$>$、$<=$、$>=$ 、$==$ などの演算を実装してくださ
+い。また、パーサは \verb|begin| -- \verb|end| 文、そして \verb|while| 文を認識しません。
+\verb|parser.mly| と \verb|lexer.mll| を改造し、上記の文を認識できるよう改良してください。
+
+具体的には、以下の手順で取り組んでください。
+
+\begin{enumerate}
+\item \verb|sytax.ml| に \verb|Sub|, \verb|Div|, \verb|Mul|, \verb|EQ| などを
+  \verb|Sytax.t| に定義
+  \begin{itemize}
+  \item \verb|Add| や \verb|LT| の定義を真似して実装する
+  \item 適宜 \verb|print_t| 関数のパターンマッチに 文字列の変換ルールを追加
+  \end{itemize}
+\item \verb|parser.mly| で引き算、割り算、等号などのトークンを定義する
+\item \verb|lexer.mly| で定義した文字列からトークンへ翻訳するルールを定義する
+\item \verb|parser.mly| で引き算、割り算、等号などのトークンから \verb|Syntax.t| への翻訳
+  を定義する
+\item \verb|virtual_stack.ml| で引き算、割り算、等号などを適切な仮想機械命令へ翻訳する
+  \begin{itemize}
+  \item \verb|Add| や \verb|LT| のパターンを真似して実装する
+  \end{itemize}
+\end{enumerate}
 
 認識するための改良が終わったら、仮想スタック機械へのコンパイラを実装してください。大部分が
 実装されていますが、パーサと同様に、仮想命令生成器 (\verb|virtual_stack.ml|) が代入文、
@@ -291,14 +311,16 @@ label	L.1
 具体的には、以下の手順で取り組んでください。
 
 \begin{enumerate}
-\item \verb|syntax.ml| に \verb|Assign|型、 \verb|Seq| 型、そして\verb|While| 型を追加する
-\item \verb|parser.mly| で代入、\verb|begin| -- \verb|end|、そして \verb|while| を認識する
+\item \verb|syntax.ml| に \verb|Seq| 型、そして\verb|While| 型を追加する
+\item \verb|parser.mly| で \verb|begin| -- \verb|end|、そして \verb|while| を認識する
   ためのトークンを定義
 \item \verb|lexer.mll| で文字列から定義したトークンへ翻訳するためのルールを定義
 \item \verb|parser.mly| でトークンから \verb|syntax.ml| で定義した \verb|Assign|,
   \verb|Seq|, \verb|While| へ翻訳するルールを定義
-\item \verb|virtual_stack.ml| で \verb|Assign|, \verb|Seq|, \verb|While| を適切な仮想機械
-  命令へ翻訳する
+\item \verb|virtual_stack.ml| で \verb|Seq|, \verb|While| を適切な仮想機械命令へ翻訳する
+  \begin{itemize}
+  \item \verb|Assign| のパターンを真似して実装する
+  \end{itemize}
 \end{enumerate}
 
 \subsubsection{レポート}
