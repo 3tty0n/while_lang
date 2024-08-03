@@ -31,3 +31,4 @@ setup.log
 _opam/
 
 *.pyc
+*.res
