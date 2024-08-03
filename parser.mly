@@ -12,6 +12,7 @@
 %token WHILE DO
 %token SKIP
 %token IF THEN ELSE
+%token PRINT
 %token <int> NUMBER           /* 整数には int 型の値が伴うことを表す */
 %token <string> VARIANT
 %token EOF                    /* 入力の終わりを表わす */
@@ -42,6 +43,7 @@ statement:
 | BEGIN statements END { Block ($2) }
 | IF predicate THEN statement ELSE statement { If ($2, $4, $6) }
 | WHILE predicate DO statement { While ($2, $4) }
+| PRINT arith { Print ($2) }
 
 statements:
 | statement SEMICOLON { $1 }

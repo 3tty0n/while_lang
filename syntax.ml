@@ -35,6 +35,7 @@ type s =
   | Seq of s * s
   | If of p * s * s
   | While of p * s
+  | Print of a
 
 type ss =
   | Statement of s
@@ -69,3 +70,5 @@ let rec string_of_statement s =
   | Block (s) -> sprintf "Block (%s);\n" (string_of_statement s)
   | Seq (s1, s2) -> sprintf "%s%s\n" (string_of_statement s1) (string_of_statement s2)
   | While (p, s) -> sprintf "While (%s, %s);\n" (string_of_predicate p) (string_of_statement s)
+  | If (p, s1, s2) -> sprintf "If (%s, %s, %s);\n" (string_of_predicate p) (string_of_statement s1) (string_of_statement s2)
+  | Print (a) -> sprintf "Print (%s);\n" (string_of_arith a)

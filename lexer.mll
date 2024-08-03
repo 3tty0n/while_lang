@@ -36,6 +36,7 @@ rule token = parse
 | "if"    { IF }
 | "then"  { THEN }
 | "else"  { ELSE }
+| "print" { PRINT }
 | eof     { EOF }
 | letter+ { VARIANT (Lexing.lexeme lexbuf) }
 | _       { failwith ("unknown token: " ^ Lexing.lexeme lexbuf) }
