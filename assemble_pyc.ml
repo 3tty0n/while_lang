@@ -1,4 +1,4 @@
-open Emit_pyc
+open Virtual_pyc
 
 let type_null      = '0'
 let type_none      = 'N'
@@ -61,27 +61,35 @@ let marshal_int oc n = atom_int oc n
 
 let marshal_str oc s = atom_str oc s
 
-let marshal_tuple oc f lst =
+let marshal_w_object oc w_object =
+  match w_object with
+  | W_Int n -> atom_int oc n
+  | W_String s -> atom_str oc s
+  | W_None -> marshal_none oc ()
+  | W_True -> marshal_bool oc true
+  | W_False -> marshal_bool oc false
+
+let marshal_tuple oc lst =
   Printf.fprintf oc "%c" type_tuple;
   put_int oc (List.length lst);
-  List.iter (fun x -> f oc x) lst
+  List.iter (fun x -> marshal_w_object oc x) lst
 
-let marshal_pycode_dummy oc pycode =
-  Printf.fprintf oc "%c" type_code;
-  put_int oc 0;                  (* argcount *)
-  put_int oc 0;                  (* nlocals *)
-  put_int oc 0;                  (* stacksize *)
-  put_int oc 64;                 (* flags *)
-  marshal_str oc (Bytes.create 10 |> Bytes.to_string);  (* code *)
-  marshal_tuple oc atom_int [1];       (* consts *)
-  marshal_tuple oc atom_str ["x"];    (* names *)
-  marshal_tuple oc atom_str [];    (* varnames *)
-  marshal_tuple oc atom_str [];    (* freevars *)
-  marshal_tuple oc atom_str [];    (* cellvars *)
-  atom_str oc "test";
-  atom_str oc "<module>";
-  put_int oc 0;
-  marshal_str oc (Bytes.create 1 |> Bytes.to_string)
+(* let marshal_pycode_dummy oc pycode = *)
+(*   Printf.fprintf oc "%c" type_code; *)
+(*   put_int oc 0;                  (\* argcount *\) *)
+(*   put_int oc 0;                  (\* nlocals *\) *)
+(*   put_int oc 0;                  (\* stacksize *\) *)
+(*   put_int oc 64;                 (\* flags *\) *)
+(*   marshal_str oc (Bytes.create 10 |> Bytes.to_string);  (\* code *\) *)
+(*   marshal_tuple oc [W_Int 1];       (\* consts *\) *)
+(*   marshal_tuple oc [W_String "x"];    (\* names *\) *)
+(*   marshal_tuple oc [];    (\* varnames *\) *)
+(*   marshal_tuple oc [];    (\* freevars *\) *)
+(*   marshal_tuple oc [];    (\* cellvars *\) *)
+(*   atom_str oc "test"; *)
+(*   atom_str oc "<module>"; *)
+(*   put_int oc 0; *)
+(*   marshal_str oc (Bytes.create 1 |> Bytes.to_string) *)
 
 let marshal_pycode oc = function
     PyCode (argcount, nlocals, stacksize, flags, code, consts, names, varnames, freevars, cellvars, filename, name, firstlineno, lnotab) ->
@@ -91,11 +99,11 @@ let marshal_pycode oc = function
     put_int oc stacksize;
     put_int oc flags;
     marshal_str oc (code |> Bytes.to_string);
-    marshal_tuple oc atom_int consts;
-    marshal_tuple oc atom_str names;
-    marshal_tuple oc atom_str varnames;
-    marshal_tuple oc atom_str freevars;
-    marshal_tuple oc atom_str cellvars;
+    marshal_tuple oc consts;
+    marshal_tuple oc names;
+    marshal_tuple oc varnames;
+    marshal_tuple oc freevars;
+    marshal_tuple oc cellvars;
     atom_str oc filename;
     atom_str oc name;
     put_int oc firstlineno;
