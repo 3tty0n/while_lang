@@ -8,20 +8,68 @@ type pyc =
   | BINARY_TRUE_DIVIDE
   | BINARY_AND
   | BINARY_OR
+  | POP_BLOCK
+  | RETURN_VALUE
+  | PRINT_ITEM
+  | PRINT_NEWLINE
   | COMPARE_OP of int
   | LOAD_NAME of int            (* opcode, operand *)
   | STORE_NAME of int           (* opcode, operand  *)
   | LOAD_CONST of int
   | SETUP_LOOP of int
-  | POP_BLOCK
   | JUMP_ABSOLETE of int
   | JUMP_FORWARD of int
   | POP_JUMP_IF_FALSE of int
   | POP_JUMP_IF_TRUE of int
-  | RETURN_VALUE
   | Label of string             (* this opcode will be removed later *)
   | Jump of string              (* label name. will be converted into JUMP_ABSOLETE or other stuff *)
   | Jump_if of string
+
+let ascii_of_opcode opcode =
+  match opcode with
+  | UNARY_NOT -> [12]
+  | BINARY_ADD -> [23]
+  | BINARY_SUBTRACT -> [24]
+  | BINARY_MULTIPLY -> [20]
+  | BINARY_TRUE_DIVIDE -> [29]
+  | BINARY_AND -> [64]
+  | BINARY_OR -> [66]
+  | PRINT_ITEM -> [71]
+  | PRINT_NEWLINE -> [72]
+  | RETURN_VALUE -> [83]
+  | POP_BLOCK -> [87]
+  | COMPARE_OP n -> [107; n; 0]
+  | LOAD_NAME n -> [101; n; 0]
+  | STORE_NAME n -> [90; n; 0]
+  | LOAD_CONST n -> [100; n; 0]
+  | JUMP_ABSOLETE n -> [113; n; 0]
+  | JUMP_FORWARD n -> [110; n; 0]
+  | POP_JUMP_IF_FALSE n -> [114; n; 0]
+  | POP_JUMP_IF_TRUE n -> [115; n; 0]
+  | _ -> failwith "Unmatched opcode"
+
+let rec opcode_list_of_pyc pyc =
+  match pyc with
+  | [] -> []
+  | hd :: tl -> (ascii_of_opcode hd) @ opcode_list_of_pyc tl
+
+let create_bytes_pyc pyc =
+  let opcode_list = opcode_list_of_pyc pyc in
+  let char_list = List.map char_of_int opcode_list in
+  let bytes = Bytes.create (List.length char_list) in
+  Bytes.iteri (fun i c -> Bytes.set bytes i (List.nth char_list i)) bytes;
+  bytes
+
+type pycode =
+   (* argcount, nlocals, stacksize, flags, code, consts, names, varnames, freevars, cellvars, filename, name, firstlineno, lnotab *)
+    PyCode of int * int * int * int * bytes * int list * string list * string list * string list * string list * string * string * int * bytes
+
+let get_code = function
+    PyCode (_, _, _, _, code, _, _,  _, _, _, _, _, _, _) ->
+    code
+
+let create_pycode argcount nlocals stacksize flags code consts names varnames freevars cellvars filename name firstlineno lnotab =
+  PyCode (argcount, nlocals, stacksize, flags, code, consts, names, varnames, freevars, cellvars, filename, name, firstlineno, lnotab)
 
 let print_pyc = function
   | LOAD_NAME i -> print_string "LOAD_NAME\t"; print_int i; print_newline ()
@@ -34,6 +82,9 @@ let print_pyc = function
   | BINARY_OR -> print_endline "BINARY_OR"
   | BINARY_TRUE_DIVIDE -> print_endline "BINARY_TRUE_DIVIDE"
   | UNARY_NOT ->  print_endline "UNARY_NOT"
+  | POP_BLOCK -> print_endline "POP_BLOCK"
+  | PRINT_ITEM -> print_endline "PRINT_ITEM"
+  | PRINT_NEWLINE -> print_endline "PRINT_NEWLINE"
   | COMPARE_OP i -> print_string "COMPARE_OP\t"; print_int i; print_newline ()
   | JUMP_ABSOLETE i -> print_string "JUMP_ABSOLETE\t"; print_int i; print_newline ()
   | JUMP_FORWARD i -> print_string "JUMP_FORWARD\t"; print_int i; print_newline ()
@@ -41,7 +92,6 @@ let print_pyc = function
   | POP_JUMP_IF_FALSE i -> print_string "POP_JUMP_IF_FALSE\t"; print_int i; print_newline ()
   | RETURN_VALUE -> print_string "RETURN_VALUE"; print_newline ()
   | SETUP_LOOP i -> print_string "SETUP_LOOP\t"; print_int i; print_newline ()
-  | POP_BLOCK -> print_endline "POP_BLOCK"
   | Jump s -> print_string "Jump\t"; print_endline s
   | Jump_if s -> print_string "Jump_if\t"; print_endline s
   | Label s -> print_string "Label: "; print_endline s
@@ -49,6 +99,11 @@ let print_pyc = function
 let count_varmap = ref (-1)
 let count_constmap = ref (-1)
 let count_cmpmap = ref (-1)
+
+let reset _ =
+  count_varmap := (-1);
+  count_constmap := (-1);
+  count_cmpmap := (-1)
 
 let find_varmap id varmap =
   try List.assoc id varmap, varmap
@@ -145,6 +200,9 @@ let rec compile_pred_pyc p varenv constenv cmpenv =
 
 let rec compile_statement_pyc s varenv constenv cmpenv =
   match s with
+  | Print (a) ->
+    let pyc, varenv, constenv, cmpenv = compile_arith_pyc a varenv constenv cmpenv in
+    pyc @ [PRINT_ITEM; PRINT_NEWLINE], varenv, constenv, cmpenv
   | Assign (id, a) ->
     let pyc, varenv, constenv, cmpenv = compile_arith_pyc a varenv constenv cmpenv in
     let reg_num, varenv = find_varmap id varenv in
@@ -159,101 +217,22 @@ let rec compile_statement_pyc s varenv constenv cmpenv =
     [Label "l"] @ pyc1 @ [Jump_if "test"] @ pyc2 @ [Jump "l"] @ [Label "test"],
     varenv, constenv, cmpenv
 
-
-let create_env_tuple varenv constenv cmpenv =
-  let var_tuple = List.map fst varenv in
-  let const_tuple = List.map fst constenv in
-  var_tuple, const_tuple
-
-
-let rec compile_pyc s =
+let compile_pyc s =
+  reset ();
   let pyc, varenv, constenv, cmpenv = compile_statement_pyc s [] [] [] in
-  List.iter print_pyc pyc;
   pyc
 
-let outpu_byte oc byte =
-  Printf.fprintf oc "%a" output_byte byte
+let create_env_tuple pyc varenv constenv cmpenv =
+  let var_tuple = List.map fst varenv in
+  (* for dummy return *)
+  let const_tuple = List.map fst constenv in
+  let cmp_tuple = List.map fst cmpenv in
+  pyc @ [LOAD_CONST 0; RETURN_VALUE], var_tuple, const_tuple, cmp_tuple
 
-let output_bytes oc bytes =
-  Printf.fprintf oc "%a" output_bytes bytes
-
-
-let type_null      = '0'
-let type_none      = 'N'
-let type_false     = 'F'
-let type_true      = 'T'
-let type_stopiter  = 'S'
-let type_ellipsis  = '.'
-let type_int       = 'i'
-let type_int64     = 'I'
-let type_float     = 'f'
-let type_string    = 's'
-let type_interned  = 't'
-let type_stringref = 'R'
-let type_tuple    = '('
-let type_list      = '['
-let type_dict      = '{'
-let type_code      = 'c'
-let type_unicode   = 'u'
-let type_unknown   = '?'
-let type_set       = '<'
-let type_frozenset = '>'
-
-(* let marshal_null oc _ = *)
-(*   output_byte oc (type_null) *)
-
-let marshal_bool oc b =
-  if b then Printf.fprintf oc "%a" output_byte (Char.code type_true)
-  else Printf.fprintf oc "%a" outpu_byte (Char.code type_false)
-
-let put_int oc n =
-  let a = Char.chr (Int.logand n 0xff) in
-  let n = Int.shift_right n 8 in
-  let b = Char.chr (Int.logand n 0xff) in
-  let n = Int.shift_right n 8 in
-  let c = Char.chr (Int.logand n 0xff) in
-  let n = Int.shift_right n 8 in
-  let d = Char.chr (Int.logand n 0xff) in
-  Printf.fprintf oc "%c" a;
-  Printf.fprintf oc "%c" b;
-  Printf.fprintf oc "%c" c;
-  Printf.fprintf oc "%c" d
-
-let atom_int oc n =
-  Printf.fprintf oc "%c" type_int;
-  put_int oc n
-
-let put_str oc s =
-  put_int oc (String.length s);
-  Printf.fprintf oc "%s" s
-
-let atom_str oc s =
-  Printf.fprintf oc "%c" type_string;
-  put_int oc (String.length s);
-  Printf.fprintf oc "%s" s
-
-let marshal_int oc n = atom_int oc n
-
-let marshal_str oc s = atom_str oc s
-
-let marshal_tuple oc f lst =
-  Printf.fprintf oc "%c" type_tuple;
-  put_int oc (List.length lst);
-  List.iter (fun x -> f oc x) lst
-
-let marshal_pycode oc pycode =
-  Printf.fprintf oc "%c" type_code;
-  put_int oc 0;                  (* argcount *)
-  put_int oc 0;                  (* nlocals *)
-  put_int oc 0;                  (* stacksize *)
-  put_int oc 64;                 (* flags *)
-  marshal_str oc (Bytes.create 10 |> Bytes.to_string);  (* code *)
-  marshal_tuple oc atom_int [1];       (* consts *)
-  marshal_tuple oc atom_str ["x"];    (* names *)
-  marshal_tuple oc atom_str [];    (* varnames *)
-  marshal_tuple oc atom_str [];    (* freevars *)
-  marshal_tuple oc atom_str [];    (* cellvars *)
-  atom_str oc "test";
-  atom_str oc "<module>";
-  put_int oc 0;
-  marshal_str oc (Bytes.create 1 |> Bytes.to_string)
+let compile_and_create_pycode s =
+  reset ();
+  let pyc, varenv, constenv, cmpenv = compile_statement_pyc s [] [] [] in
+  let pyc, var, const, cmp = create_env_tuple pyc varenv constenv cmpenv in
+  let code = create_bytes_pyc pyc in
+  let pycode = create_pycode 0 0 0 64 code const var cmp [] [] "test.py" "<module>" 0 (Bytes.of_string "4") in
+  pycode
