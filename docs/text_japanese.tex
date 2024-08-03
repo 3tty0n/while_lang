@@ -1,0 +1,338 @@
+\documentclass[a4paper,11pt]{jsarticle}
+%\usepackage{latexsym}
+%\usepackage{epsfig}
+\usepackage[dvipdfmx]{graphicx}
+\usepackage{epsfig}
+%\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{theorem}
+\usepackage{multicol}
+\usepackage{mdwlist}
+\usepackage{url}
+\usepackage[colorlinks=true,urlcolor=cyan,linkcolor=blue,dvipdfmx]{hyperref}
+\usepackage[dvipdfmx]{hyperref}
+\usepackage{pxjahyper}
+
+\usepackage{subcaption}
+\usepackage{listings}
+\usepackage{float}
+\usepackage{here}
+
+\lstset{
+  basicstyle=\ttfamily\small,
+}
+
+%\pagestyle{empty}
+
+\title{{\bf 情報システム実験I\\コンパイラ}}
+\author{伊澤侑祐}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section{実験目的}
+コンパイラとは、ある言語で書かれたソースコードを読み込んで、コンピュータが実行できる機械語
+に翻訳するプログラムです。多くの場合、高級言語と呼ばれるC言語やPascalなど人間が理解しやす
+い言語で記述されたソースコードをCPU（中央演算処理装置）が実行できる命令コードに変換するプ
+ログラムを指します。コンパイラの開発はむづかしいですが、これまでの研究開 発の中から多くの
+体系的な開発手法が提案されています。本実験では、簡単なコンパイラを作成して、開発手法の基本
+を学びます。
+
+% 図~\ref{phase}にコンパイル処理の流れを示します。\framebox[1cm][l]{　}で囲まれた各フェーズ
+% の具体的な処理については、\ref{text}節に示したテキスト「\textbf{コンパイラI}」と
+% 「\textbf{コンパイラII}」を参照して下さい。
+
+本実験の目的は以下の通りです。
+
+\begin{enumerate}
+\item Pscal 風の高級言語 (While言語) を仮想的なスタック機械の命令コードに翻訳する仕組みを学ぶ。
+\item 仮想的なスタック機械の命令コードを経由してPython命令コードへ翻訳する仕組みを学ぶ。同
+  時に、実際にPythonインタプリタでWhile言語コンパイラを動作させてみる。
+\item スタック機械である Python インタプリタの仕組みの概観を理解する。
+\item Visual Studio Code に慣れる。
+\end{enumerate}
+
+\section{テキスト}\label{text}
+%下記のテキストを読んで，各自で課題をこなす．
+%実習書には，実験の目的，言語の仕様，参考書へのポインタ，レポート内容など実験特有の情報を記述する．
+
+以下の本(\textbf{Pascal}以外)をテキストとして、それぞれを1人1冊貸し出します。
+必要なら各自の責任の元に、貸し出し帳に記入の上持ち帰っても構いません。
+テキストの参照箇所を示す時、テキスト名を\textbf{コンパイラI}のように略して表記しています。
+OCaml については、五十嵐淳教授 (京都大学) の「OCaml爆速入門」を「手を動かしながら」読んで
+ください。最初の授業でも解説します。
+
+\begin{description}
+  \item[OCaml爆速入門]
+    「\href{https://www.fos.kuis.kyoto-u.ac.jp/~igarashi/class/pl/03-ocaml.html}{OCaml爆速
+      入門}」、五十嵐淳、2019年
+  \item[コンパイラI] 「コンパイラ I 言語・技法・ツール」，A.V.エイホ他著，サイエンス社，1990年
+  \item[コンパイラII] 「コンパイラ II 言語・技法・ツール」，A.V.エイホ他著，サイエンス社，1990年
+  \item[Pascal] 「Pascal」，K.イェンゼン他著，培風館，1993年
+\end{description}
+
+\section{ソース言語とスタック機械の仕様}
+
+\subsection{ソース言語の仕様}
+%テキストの909ページ付録に構文例がのっているので参考にする．
+ソースコードを記述する言語をソース(原始)言語と呼びます。
+本実験では、図\ref{spec}の仕様を持つPascal風のソース言語のコンパイラを作成します。
+仕様の見方については、\textbf{コンパイラI}の2章2.2節および3章3.3節を参照して下さい。
+この書き換え規則により、例えば代入文「\textsf{i:=i+1}」が生成できます（図\ref{生成例}）。
+また、図\ref{sample}に$9$の階乗を計算するプログラムの例を示します。
+
+\begin{figure}[H]
+  \centering
+  \textsf{\small
+    \begin{tabular}{lcl}
+      \hline
+      stmt\_list & := & stmt\_list stmt; $|$ stmt; \\
+      stmt & := & id := expr $|$ \textbf{while} cond \textbf{do} stmt $|$ \textbf{begin} stmt\_list \textbf{end} \\
+      cond & := & expr $>$ expr $|$ expr $<$ expr $|$ expr == expr \\
+      expr & := & expr + term $|$ expr $-$ term $|$ term \\
+      term & := & term $\ast$ factor $|$ factor \\
+      factor & := & id $|$ num $|$ (expr)\\
+      id & := & letter (letter $|$ digit)* \\
+      num & := & digit digit* \\
+      letter & := & a $|$ b $|$ $\ldots$ $|$ z $|$ A $|$ B $|$ $\ldots$ $|$ Z \\
+      digit & := & 0 $|$ 1 $|$ 2 $|$ $\ldots$ $|$ 9\\
+      \hline
+    \end{tabular}
+  }
+  \caption{ソース言語の仕様}\label{spec}
+\end{figure}
+
+\begin{figure}[H]
+  \begin{subfigure}[b]{.4\linewidth}
+    \centering
+    \textsf{\small
+      \begin{tabular}{lcl}
+        stmt & $\rightarrow$ & id := expr \\
+             & $\rightarrow$ & letter := expr \\
+             & $\rightarrow$ & i := expr \\
+             & $\rightarrow$ & i := expr + term \\
+             & $\rightarrow$ & i := term + term \\
+             & $\rightarrow$ & i := factor + term \\
+             & $\rightarrow$ & i := id + term \\
+             & $\rightarrow$ & i := letter + term \\
+             & $\rightarrow$ & i := i + term \\
+             & $\rightarrow$ & i := i + factor \\
+             & $\rightarrow$ & i := i + num \\
+             & $\rightarrow$ & i := i + digit \\
+             & $\rightarrow$ & i := i + 1
+      \end{tabular}
+    }
+    \caption{文の生成例}\label{生成例}
+  \end{subfigure}\hfill
+  \begin{subfigure}[b]{.5\linewidth}
+    \centering
+    \begin{lstlisting}
+      a := 1;
+      i := 2;
+      while i < 10 do
+      begin
+        a := a * 1;
+        i := i + 1;
+      end
+    \end{lstlisting}
+    \caption{プログラム例}\label{sample}
+  \end{subfigure}
+\end{figure}
+
+\subsection{スタック機械の仕様}
+オブジェクトコードはターゲット機械に依存します。
+本実験のターゲット機械は仮想的なスタック機械です。詳細は\textbf{コンパイラI}の2章2.8節を参
+照して下さい。表~\ref{stackcommand}にスタック機械の命令セットを示します。なお、Pythonバイ
+トコードへの変換のため、教科書にある命令セットを一部変更しています。
+
+\begin{table}[H]
+\caption{スタック機械の命令セット} \label{stackcommand}
+\centering
+\normalsize{
+  \begin{tabular}{c|p{30zw}}
+    \hline
+    \texttt{push} $v$ & $v$をスタックに積む。\\
+    \texttt{pop} & スタックの最上段の要素を取り去る。\\
+    $+$ & 最上段とその下にある要素を取り出して加算し、結果をスタックに積む。\\
+    $-$ & 最上段とその下にある要素を取り出して下の値から上の値を引き，結果をスタックに積む。\\
+    $\ast$ & 最上段とその下にある要素を取り出して掛け算し、結果をスタックに積む。\\
+    $>$ & 最上段とその下にある要素を取り出し、下の値が上の値より大きい場合は$1$(\texttt{true})、そうでない場合は$0$(\texttt{false})をスタックに積む。\\
+    $<$ & 最上段とその下にある要素を取り出し、下の値が上の値より小さい場合は$1$(\texttt{true})、そうでない場合は$0$(\texttt{false})をスタックに積む。\\
+    $==$ & 最上段とその下にある要素を取り出し、下の値が上の値と等しい場合は$1$(\texttt{true})、そうでない場合は$0$(\texttt{false})をスタックに積む。\\
+    \texttt{rvalue} $l$ & データの格納場所$l$の内容をスタックに積む。\\
+    \texttt{lpush} $l$ & 最上段の要素を取り出しデータの格納場所$l$に代入する。\\
+    \texttt{copy} & 最上段の値を複写してスタックに積む。\\
+    \texttt{label} $l$ & 飛先$l$を示す。それ以外の効果はない。\\
+    \texttt{goto} $l$ & 次はラベル$l$をもつ命令から実行を続ける。\\
+    \texttt{gofalse} $l$ & スタックの最上段から値を取り去り、その値が$0$なら飛越しをする。\\
+    \texttt{gotrue} $l$ & スタックの最上段から値を取り去り、その値が$1$なら飛越しをする。\\
+    \hline
+  \end{tabular}
+}
+\end{table}
+
+\subsection{具体例}
+目的のコンパイラはソース言語で書かれたプログラムをスタック機械の命令コードに変換します。
+代入文、begin-end文、while文の具体例と図\ref{sample}のプログラムの翻訳結果を以下に示します。
+
+\begin{enumerate}
+\item 代入文 \\
+  \fbox{入力} \texttt{a := a * 2;} \\
+  \fbox{出力}
+  \begin{lstlisting}
+rvalue a
+push   2
+*
+lpush  a
+  \end{lstlisting}
+
+\item begin-end文
+
+  \fbox{入力} \texttt{begin a := a * i; i := i + 1; end;}
+
+  \fbox{出力}
+  \begin{lstlisting}
+rvalue a
+rvalue i
+*
+lvalue a
+rvalue i
+push   1
+lpush  i
+  \end{lstlisting}
+
+\item while文
+
+  \fbox{入力} \texttt{while i < 10 do i := i + 1;}
+
+  \fbox{出力}
+
+  \begin{lstlisting}
+label L.0
+rvalue i
+push 10
+<
+gofalse out
+lvalue  i
+rvalue  i
+push    1
++
+lpush   i
+goto    L.0
+label   L.1
+  \end{lstlisting}
+
+\end{enumerate}
+
+\section{演習}
+
+\subsection{準備}
+
+本演習では、GitHubリポジトリを通じて資料を提供します。GitHubリポジトリからファイルをダウン
+ロードできるか確認してください。
+
+\subsection{1日目: OCaml入門}
+
+1日目では、まずOCamlに入門します。「\href{https://www.fos.kuis.kyoto-u.ac.jp}{OCaml爆速入門}」を読みながらOCamlプログラムの書き方を学
+びましょう。余った時間で「コンパイラI」を読み、コンパイラの仕組みについて理解しましょう。
+
+\begin{enumerate}
+\item 「OCaml爆速入門」を読みながらOCamlについて勉強する。特に、以下の章を読み練習問題を解
+  く。
+  \begin{itemize}
+  \item
+    \href{https://www.fos.kuis.kyoto-u.ac.jp/~igarashi/class/pl/03-ocaml.html#quick-intro-ocaml}{
+      OCaml爆速入門 (その1)}
+  \item
+    \href{https://www.fos.kuis.kyoto-u.ac.jp/~igarashi/class/pl/03-ocaml.html#quick-intro-ocaml2}{
+      OCaml爆速入門 (その2) -- データ構造の基本
+    } の「ヴァリアント」、「再履ヴァリアント」
+  \item
+    \href{https://www.fos.kuis.kyoto-u.ac.jp/~igarashi/class/pl/03-ocaml.html#quick-intro-ocaml2}{
+      OCaml爆速入門 (その3) -- 変更可能データ構造
+    } の「制御構造」
+  \end{itemize}
+\item \textbf{コンパイラI}（以下，テキスト）の2章「簡単な1パス コンパイラ」の2.1節から2.5
+  節を読んで、コンパイラの仕組みを理解する。
+\end{enumerate}
+
+さらに時間が余った場合は、2日目の内容を進めてください。
+
+
+\subsubsection{レポート}
+
+まず、自分が勉強のために記述したOCamlプログラムとその実行結果のうち、面白いと思ったプログ
+ラムを3個選んでレポートにまとめてください。また、以下のOCaml爆速入門の練習問題を解きその解
+答をレポートにまとめてください。
+
+\begin{enumerate}
+\item 与えられた正整数 $n$ に対、$1^2 + 2^2 + \cdots + n^2$ を
+  計算する再帰関数 \verb|square: int -> int| を定義せよ。
+  (引数 \verb|n| が負である場合の動作はどう定義してもよい。)
+\item 与えられた正整数 $n$ に対し、$n$ 番目のフィボナッチ数を計算する再帰関数 \verb|fib : int -> int| を定義せよ。
+  (引数 \verb|n| が負である場合の動作はどう定義してもよい。)
+\item 一品が菜食主義者でも食べられるかどうかを判定する関数 \verb|isVeggieDish : dish -> bool| を定義せよ．
+\item 定食が菜食主義者でも食べられるかどうかを判定する再帰関数 \verb|isVeggieMenu : menu -> bool| を定義せよ．
+\end{enumerate}
+
+\subsection{2日目: 仮想スタック機械への簡易コンパイラの作成}
+
+2日目は、While言語から仮想スタック機械へのコンパイラを製作します。
+配布するソースコードは大部分が実装されていますが、パーサーが代入文、\verb|begin| --
+\verb|end| 文、そして \verb|while| 文を認識しません。\verb|parser.mly| と \verb|lexer.mll|
+を改造し、上記の文を認識できるよう改良してください。
+
+認識するための改良が終わったら、仮想スタック機械へのコンパイラを実装してください。大部分が
+実装されていますが、パーサと同様に、仮想命令生成器 (\verb|virtual_stack.ml|) が代入文、
+\verb|begin| -- \verb|end| 文、そして \verb|while| 文を認識しません。これらを正しく仮想ス
+タック機械の命令へ翻訳できるように \verb|virual_stack.ml| を改良してください。
+
+具体的には、以下の手順で取り組んでください。
+
+\begin{enumerate}
+\item \verb|syntax.ml| に \verb|Assign|型、 \verb|Seq| 型、そして\verb|While| 型を追加する
+\item \verb|parser.mly| で代入、\verb|begin| -- \verb|end|、そして \verb|while| を認識する
+  ためのトークンを定義
+\item \verb|lexer.mll| で文字列から定義したトークンへ翻訳するためのルールを定義
+\item \verb|parser.mly| でトークンから \verb|syntax.ml| で定義した \verb|Assign|,
+  \verb|Seq|, \verb|While| へ翻訳するルールを定義
+\item \verb|virtual_stack.ml| で \verb|Assign|, \verb|Seq|, \verb|While| を適切な仮想機械
+  命令へ翻訳する
+\end{enumerate}
+
+\subsubsection{レポート}
+
+自分が改良した内容をレポートにまとめて提出してください。レポートにする際、実行したWhile言
+語ソースコードと実行結果を含めることが望ましい。
+
+
+\subsection{3日目: Pythonバイトコードコンパイラの作成}
+
+3日目は、2日目までに実装した仮想スタック機械コンパイラをPythonバイトコードへコンパイルしま
+す。\verb|emit_pyc.ml| と \verb|assemble_pyc.ml| を用い、Pythonバイトコードへ変換してくだ
+さい。変換の後、実際にPythonインタプリタで動かしてみましょう。具体的な手順は以下の通りです。
+
+\begin{enumerate}
+\item \verb|./while_lang test/assign.while| と実行し \verb|test/assign.pyc| を生成する
+\item \verb|./interpret.py test/assign.pyc| と実行し結果を確認する
+\end{enumerate}
+
+\subsubsection{レポート}
+
+\begin{itemize}
+\item 実際にPythonバイトコードへ変換する際、どういうルールで翻訳を行ったか説明してください。
+\item Pythonのバイトコード命令について調べてまとめてください。具体的には、Pythonのバイトコー
+  ドが約何命令存在するのか、そして、自分が興味を持った命令について調べて実際に実行した内容
+  をまとめてください。
+\end{itemize}
+
+\section{Pythonバイトコードを調べる上での資料}
+
+\begin{itemize}
+\item 「\href{https://docs.python.org/ja/3/library/dis.html}{Pythonバイトコードの逆アセンブラー}」
+\item 「\href{https://github.com/python/cpython/blob/main/Include/opcode_ids.h}{opcode\_ids.h}」、CPython
+\end{itemize}
+
+\end{document}
