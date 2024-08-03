@@ -171,6 +171,12 @@ let rec compile_pyc s =
   List.iter print_pyc pyc;
   pyc
 
+let outpu_byte oc byte =
+  Printf.fprintf oc "%a" output_byte byte
+
+let output_bytes oc bytes =
+  Printf.fprintf oc "%a" output_bytes bytes
+
 
 let type_null      = '0'
 let type_none      = 'N'
@@ -193,5 +199,61 @@ let type_unknown   = '?'
 let type_set       = '<'
 let type_frozenset = '>'
 
-let marshal_null oc _ =
-  Printf.fprintf oc "%c" type_null
+(* let marshal_null oc _ = *)
+(*   output_byte oc (type_null) *)
+
+let marshal_bool oc b =
+  if b then Printf.fprintf oc "%a" output_byte (Char.code type_true)
+  else Printf.fprintf oc "%a" outpu_byte (Char.code type_false)
+
+let put_int oc n =
+  let a = Char.chr (Int.logand n 0xff) in
+  let n = Int.shift_right n 8 in
+  let b = Char.chr (Int.logand n 0xff) in
+  let n = Int.shift_right n 8 in
+  let c = Char.chr (Int.logand n 0xff) in
+  let n = Int.shift_right n 8 in
+  let d = Char.chr (Int.logand n 0xff) in
+  Printf.fprintf oc "%c" a;
+  Printf.fprintf oc "%c" b;
+  Printf.fprintf oc "%c" c;
+  Printf.fprintf oc "%c" d
+
+let atom_int oc n =
+  Printf.fprintf oc "%c" type_int;
+  put_int oc n
+
+let put_str oc s =
+  put_int oc (String.length s);
+  Printf.fprintf oc "%s" s
+
+let atom_str oc s =
+  Printf.fprintf oc "%c" type_string;
+  put_int oc (String.length s);
+  Printf.fprintf oc "%s" s
+
+let marshal_int oc n = atom_int oc n
+
+let marshal_str oc s = atom_str oc s
+
+let marshal_tuple oc f lst =
+  Printf.fprintf oc "%c" type_tuple;
+  put_int oc (List.length lst);
+  List.iter (fun x -> f oc x) lst
+
+let marshal_pycode oc pycode =
+  Printf.fprintf oc "%c" type_code;
+  put_int oc 0;                  (* argcount *)
+  put_int oc 0;                  (* nlocals *)
+  put_int oc 0;                  (* stacksize *)
+  put_int oc 64;                 (* flags *)
+  marshal_str oc (Bytes.create 10 |> Bytes.to_string);  (* code *)
+  marshal_tuple oc atom_int [1];       (* consts *)
+  marshal_tuple oc atom_str ["x"];    (* names *)
+  marshal_tuple oc atom_str [];    (* varnames *)
+  marshal_tuple oc atom_str [];    (* freevars *)
+  marshal_tuple oc atom_str [];    (* cellvars *)
+  atom_str oc "test";
+  atom_str oc "<module>";
+  put_int oc 0;
+  marshal_str oc (Bytes.create 1 |> Bytes.to_string)
