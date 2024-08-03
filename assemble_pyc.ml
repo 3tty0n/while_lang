@@ -1,4 +1,5 @@
 open Virtual_pyc
+open Pycode
 
 let type_null      = '0'
 let type_none      = 'N'

@@ -1,1 +1,1 @@
-val assemble : out_channel -> Virtual_pyc.pycode -> unit
+val assemble : out_channel -> Pycode.pycode -> unit
