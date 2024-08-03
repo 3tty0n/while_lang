@@ -59,10 +59,15 @@ type w_object =
   | W_False
   | W_None
 
-type pycode =
-    PyCode of int * int * int * int * bytes * (* argcount, nlocals, stacksize, flags, code *)
-              w_object list * w_object list * w_object list * w_object list * w_object list * (* consts, names, varnames, freevars, cellvars, *)
-              string * string * int * bytes (* name, filename, firstlineno, lnotab *)
+type p = {
+  argcount: int; nlocals: int; stacksize: int; flags: int;
+  code: bytes;
+  consts: w_object list; names: w_object list;
+  varnames: w_object list; freevars: w_object list; cellvars: w_object list;
+  name: string; filename: string; firstlineno: int; lnotab: bytes
+}
+
+type pycode = PyCode of p
 
 let ascii_of_opcode opcode =
   match opcode with
@@ -100,12 +105,12 @@ let create_bytes_pyc pyc =
   Bytes.iteri (fun i c -> Bytes.set bytes i (List.nth char_list i)) bytes;
   bytes
 
-let get_code = function
-    PyCode (_, _, _, _, code, _, _,  _, _, _, _, _, _, _) ->
-    code
-
 let create_pycode argcount nlocals stacksize flags code consts names varnames freevars cellvars filename name firstlineno lnotab =
-  PyCode (argcount, nlocals, stacksize, flags, code, consts, names, varnames, freevars, cellvars, filename, name, firstlineno, lnotab)
+  PyCode {
+    argcount; nlocals; stacksize; flags; code;
+    consts; names; varnames; freevars; cellvars;
+    filename; name; firstlineno; lnotab;
+  }
 
 let print_pyc = function
   | LOAD_NAME i -> print_string "LOAD_NAME\t"; print_int i; print_newline ()
@@ -298,21 +303,23 @@ let resolve_label pyc =
 
 let compile_pyc s =
   reset ();
-  let pyc, _, _ = compile_statement_pyc s [] [] in
-  let pyc = resolve_label pyc in
-  pyc
+  let pyc, varenv, constenv = compile_statement_pyc s [] [] in
+  resolve_label pyc
 
-let compile_and_create_pycode s =
+let compile name s =
   reset ();
   let pyc, varenv, constenv = compile_statement_pyc s [] [] in
+  let varenv, constenv = List.rev varenv, List.rev constenv in
   let pyc = resolve_label pyc in
   (* for dummy return *)
   let w_none_reg_num = !count_constenv + 1 in
   let const_tuple = List.map fst (constenv @ [(W_None, w_none_reg_num)]) in
   let var_tuple = List.map fst varenv in
   let code = create_bytes_pyc (pyc @ [LOAD_CONST w_none_reg_num; RETURN_VALUE]) in
-  let pycode =
-    create_pycode 0 4 4 64 code
-      const_tuple var_tuple [] [] []
-      "test.py" "<module>" 0 (Bytes.of_string "4") in
-  pycode
+  PyCode (
+    { argcount=0; nlocals=4; stacksize=4; flags=64;
+      code=code; consts=const_tuple; names=var_tuple; varnames=[];
+      freevars=[]; cellvars=[]; name=name; filename="<module>";
+      firstlineno=0; lnotab=(Bytes.of_string "4")
+    }
+  )

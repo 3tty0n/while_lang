@@ -1,7 +1,9 @@
 %{
+  (* 利用するモジュールを宣言。今回は Syntax を使用する *)
   open Syntax
 %}
 
+/* トークン (字句) の宣言。 lexer.mll でマッピングを行う */
 %token BEGIN END
 %token SEMICOLON
 %token TRUE FALSE NOT
@@ -34,9 +36,16 @@
 /* %% は省略不可 */
 %%
 
+/* 開始記号。 parser はここからパースを開始する */
 start:
 | statements EOF { $1 }
+| error
+    { failwith
+        (Printf.sprintf "parse error near characters %d-%d"
+           (Parsing.symbol_start ())
+           (Parsing.symbol_end ())) }
 
+/* statement (文) をパースするための記号 */
 statement:
 | SKIP { Skip }
 | VARIANT ASSIGN arith { Assign ($1, $3) }
@@ -45,10 +54,12 @@ statement:
 | WHILE predicate DO statement { While ($2, $4) }
 | PRINT arith { Print ($2) }
 
+/* 連続する statement (文) をパースするための記号 */
 statements:
 | statement SEMICOLON { $1 }
 | statement SEMICOLON statements { Seq ($1, $3) }
 
+/* 条件式をパースするための記号 */
 predicate:
 | TRUE  { True }
 | FALSE { False }
@@ -60,6 +71,7 @@ predicate:
 | arith GE arith { GE ($1, $3) }
 | arith EQ arith { EQ ($1, $3) }
 
+/* 数値、変数、そして演算をパースする記号 */
 arith:
 | NUMBER { Num ($1) }
 | VARIANT { Var ($1) }

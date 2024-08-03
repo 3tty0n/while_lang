@@ -31,11 +31,17 @@ type pyc =
   | Jump of string              (* label name. will be converted into JUMP_ABSOLETE or other stuff *)
   | Jump_if of string
 
-type pycode =
-   (* argcount, nlocals, stacksize, flags, code, consts, names, varnames, freevars, cellvars, filename, name, firstlineno, lnotab *)
-    PyCode of int * int * int * int * bytes * w_object list * w_object list * w_object list * w_object list * w_object list * string * string * int * bytes
+type p = {
+  argcount: int; nlocals: int; stacksize: int; flags: int;
+  code: bytes;
+  consts: w_object list; names: w_object list;
+  varnames: w_object list; freevars: w_object list; cellvars: w_object list;
+  name: string; filename: string; firstlineno: int; lnotab: bytes
+}
+
+type pycode = PyCode of p
 
 val print_pyc : pyc -> unit
 val print_pyc_list : pyc list -> unit
 val compile_pyc : Syntax.s -> pyc list
-val compile_and_create_pycode : Syntax.s -> pycode
+val compile : string -> Syntax.s -> pycode

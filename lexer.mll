@@ -9,6 +9,7 @@ let lower = ['a'-'z']
 let upper = ['A'-'Z']
 let letter = lower | upper
 
+(*  文字列からparser.mly で宣言したトークンにでマッピングする *)
 rule token = parse
 | space+ { token lexbuf }
 | '+'  { PLUS }
