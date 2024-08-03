@@ -1,0 +1,15 @@
+i := 0;
+
+while i < 10 do
+  begin
+    i := i + 1;
+    j := 0;
+    while j < 10 do
+    begin
+      j := j + 1;
+      print j;
+    end;
+  end;
+
+print i;
+print j;
