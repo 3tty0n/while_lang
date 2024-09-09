@@ -13,5 +13,6 @@ if __name__ == '__main__':
     code = marshal.load(inf)
     if args.debug:
         dis.disassemble(code)
+        import pdb; pdb.set_trace()
     exec(code)
     inf.close()

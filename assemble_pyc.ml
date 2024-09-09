@@ -1,4 +1,3 @@
-open Virtual_pyc
 open Pycode
 
 let type_null      = '0'
