@@ -27,11 +27,10 @@
 
 /* 演算子の優先順位を指定する (低い方から高い方へ) */
 /* 結合なし  */
-%nonassoc UNARY
-%right prec_assign
-%left PLUS MINUS
-%left TIMES DIVIDE
-%left AND OR
+%left PLUS MINUS       /* 最も低いの優先度 */
+%left TIMES DIVIDE     /* 中間の優先度 */
+%left AND OR           /* 高い優先度 */
+%nonassoc UNARY        /* 最も高い優先度 */
 
 /* %% は省略不可 */
 %%
