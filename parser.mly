@@ -28,8 +28,9 @@
 /* 演算子の優先順位を指定する (低い方から高い方へ) */
 /* 結合なし  */
 %nonassoc UNARY
-%left TIMES DIVIDE
+%right prec_assign
 %left PLUS MINUS
+%left TIMES DIVIDE
 %left AND OR
 
 /* %% は省略不可 */
