@@ -6,6 +6,7 @@ A small language that is compiled to Python bytecode. This language is designed 
 
 - OCaml >= 4.14
 - Python 2.7 (not Python 3! sorry)
+- `wabt`
 
 ### Install OCaml
 
@@ -13,11 +14,12 @@ A small language that is compiled to Python bytecode. This language is designed 
 
 ```shell
 $ brew install ocaml
+$ brew install wabt
 ```
 
 #### Windows
 
-Plese use WSL or WSL2! And hit `sudo apt install ocaml`.
+Plese use WSL or WSL2! And hit `sudo apt install ocaml wabt`.
 
 For cygwin users: see this document (https://fdopen.github.io/opam-repository-mingw/installation/)
 
@@ -56,12 +58,24 @@ $ make clean
 - `syntax.ml`: 構文木 (文法) を定義する
 - `parser.mly`: 構文解析のルールを定義する。パーサの生成にはocamlyaccを用いる
 - `lexer.mll`: 字句解析のルールを定義する。レキサの生成にはocamllexを用いる
-- `virtual_stack.ml`: 仮想スタックマシンの命令セット、命令セットへのコンパイラが含まれる
+- `virtual_stack.ml`: 仮想スタックマシンの命令セット、命令セットへのコンパイラが
+  含まれる
+- `emit_wasm.ml`: WebAssembly 中間表現への変換ルールを定義する。
 - `emit_pyc.ml`: Python のバイトコードへ変換するためのコンパイラが含まれる
 - `assemble_pyc.ml`: While 言語コンパイラでコンパイルされたバイトコードを Python オブジェ
     クトへ直列化するためのコンパイラ。Python インタプリタでコンパイルコードを実行するために必要。
 
 コンパイルの流れは以下の通りです。
+
+WebAssembly へ変換する場合：
+
+```
+ (while 言語) --- lexing (lexer.mll) --- parsing (parser.mly) --> (構文木、syntax.ml)
+             --- virtual_stack.ml    --> (仮想スタックマシン命令列)
+             --- emit_wasm.ml        --> (WebAssembly 中間表現)
+```
+
+Python バイトコードへ変換する場合：
 
 ```
  (while 言語) --- lexing (lexer.mll) --- parsing (parser.mly) --> (構文木、syntax.ml)
@@ -83,6 +97,9 @@ $ brew install ocaml
 
 ### Windows
 
+Windows Subsystem Linux 2 (WSL2) の使用を推奨します。その他、 Ocaml for Windows
+という cygwin 拡張があります。
+
 [OCaml for Windows](https://fdopen.github.io/opam-repository-mingw/installation/) から
 `64-bit` をクリックして GUI インストーラを使用してインストールしてください。
 cygwin カスタム環境が構築され、cygwin で OCaml が使えるようになります。
@@ -103,11 +120,25 @@ $ make
 $ make clean
 ```
 
+While 言語を `.wat` へコンパイルする
+
+```
+$ ./while_lang test/assign.while
+```
+
+`.wat` から `.wasm` へコンパイルする
+
+```
+$ wat2wasm test/assign.wat -o test/assign.wasm
+```
+
+
 While 言語を `.pyc` へコンパイルする
 
 ```shell
 $ ./while_lang test/assign.while
 ```
+
 
 `.pyc` を Python2 インタプリタで実行する
 
