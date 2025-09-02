@@ -2,9 +2,14 @@ let assemble name oc l =
   let syntax = Parser.start Lexer.token l in
   let ops_stack = Virtual_stack.compile_stack syntax in
   let ops_pyc = Emit_pyc.compile_pyc ops_stack in
-  Pycode.print_pyc_list ops_pyc;
+  (* Pycode.print_pyc_list ops_pyc; *)
   let pycode = Emit_pyc.compile name ops_stack in
   Assemble_pyc.assemble oc pycode
+
+let assemble_wasm name oc l =
+  let syntax = Parser.start Lexer.token l in
+  let ops_stack = Virtual_stack.compile_stack syntax in
+  Emit_wasm.compile_expr_subset stdout ops_stack
 
 let print_stack_code l =
   Virtual_stack.print_code stdout
@@ -22,7 +27,7 @@ let main filename =
   let ic = open_in filename in
   let oc = open_out outname in
   let l = Lexing.from_channel ic in
-  assemble name oc l;
+  assemble_wasm name oc l;
   close_out oc
 
 let test () =
@@ -35,6 +40,5 @@ let () =
     main filename
   else (
     Printf.eprintf "[usage] %s filename.while\n" Sys.argv.(0);
-    test ();
     exit(1)
   )
