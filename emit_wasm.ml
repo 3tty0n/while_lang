@@ -16,27 +16,13 @@ let make_indent oc ?(extra=0) =
   List.iter (fun _ -> Printf.fprintf oc " ")
     (List.init (!indent + extra) (fun _ -> ()))
 
-let emit_code oc (f : unit -> unit) =
+let emit_code oc =
     make_indent oc ~extra:2;
-    f ()
+    Printf.fprintf oc
 
 type env = { mutable globals: (string, unit) Hashtbl.t }
 
 type cframe = { test: string; out: string }
-
-let wasm_of_binop = function
-  | PLUS  -> "i32.add"
-  | MINUS -> "i32.sub"
-  | TIMES -> "i32.mul"
-  | DIV   -> "i32.div_s"
-  | EQ    -> "i32.eq"
-  | LT    -> "i32.lt_s"
-  | LE    -> "i32.le_s"
-  | GT    -> "i32.gt_s"
-  | GE    -> "i32.ge_s"
-  | AND   -> "i32.and"
-  | OR    -> "i32.or"
-  | _ -> invalid_arg "not a binop"
 
 let collect_globals prog =
   let g = Hashtbl.create 8 in
@@ -48,35 +34,43 @@ let collect_globals prog =
 
 let emit_instr (oc : out_channel) (ctrl : cframe list ref) (pending_store: string option ref) =
   function
-  | Push n      -> emit_code oc (fun _ -> Printf.fprintf oc "i32.const %d\n" n)
-  | TRUE        -> emit_code oc (fun _ -> Printf.fprintf oc "i32.const 1\n")
-  | FALSE       -> emit_code oc (fun _ -> Printf.fprintf oc "i32.const 0\n")
-  | NOT         -> emit_code oc (fun _ -> Printf.fprintf oc "i32.eqz\n")
-  | PLUS | MINUS | TIMES | DIV
-  | EQ | LT | LE | GT | GE
-  | AND | OR as t -> emit_code oc (fun _ -> Printf.fprintf oc "%s\n" (wasm_of_binop t))
-  | RValue x    -> emit_code oc (fun _ -> Printf.fprintf oc "global.get $%s\n" x)
-  | PRINT       -> emit_code oc (fun _ -> Printf.fprintf oc "call $print\n")
-  | LPush x     -> emit_code oc (fun _ -> Printf.fprintf oc "global.set $%s\n" x)
+  | Push n      -> emit_code oc "i32.const %d\n" n
+  | TRUE        -> emit_code oc "i32.const 1\n"
+  | FALSE       -> emit_code oc "i32.const 0\n"
+  | NOT         -> emit_code oc "i32.eqz\n"
+  | PLUS        -> emit_code oc "i32.add\n"
+  | MINUS       -> emit_code oc "i32.sub\n"
+  | TIMES       -> emit_code oc "i32.mul\n"
+  | DIV         -> emit_code oc "i32.div_s\n"
+  | EQ          -> emit_code oc "i32.eq\n"
+  | LT          -> emit_code oc "i32.lt_s\n"
+  | LE          -> emit_code oc "i32.le_s\n"
+  | GT          -> emit_code oc "i32.gt_s\n"
+  | GE          -> emit_code oc "i32.te_s\n"
+  | AND         -> emit_code oc "i32.and\n"
+  | OR          -> emit_code oc "i32.and\n"
+  | RValue x    -> emit_code oc "global.get $%s\n" x
+  | PRINT       -> emit_code oc "call $print\n"
+  | LPush x     -> emit_code oc "global.set $%s\n" x
   | LabelTest (t, out) ->
      ctrl := {test=t; out=out} :: !ctrl;
-     emit_code oc (fun _ -> Printf.fprintf oc "(block $%s\n" out);
+     emit_code oc "(block $%s\n" out;
      inc_indent ();
-     emit_code oc (fun _ -> Printf.fprintf oc "(loop $%s\n" t);
+     emit_code oc "(loop $%s\n" t;
      inc_indent ()
   | GoFalse out ->
      (* 直前までに cond がスタックにある想定 *)
-     emit_code oc (fun _ -> Printf.fprintf oc "i32.eqz\n");
-     emit_code oc (fun _ -> Printf.fprintf oc "br_if $%s\n" out)
-  | GoTo t -> emit_code oc (fun _ -> Printf.fprintf oc "br $%s\n" t)
+     emit_code oc "i32.eqz\n";
+     emit_code oc "br_if $%s\n" out
+  | GoTo t -> emit_code oc "br $%s\n" t
   | LabelOut (t, out) ->
      (* スタック整合性を軽く確認（任意） *)
      begin match !ctrl with
      | {test; out=_} :: rest when test = t ->
         ctrl := rest;
-        (emit_code oc (fun _ -> Printf.fprintf oc ") ;; loop\n");
+        (emit_code oc ") ;; loop\n";
          dec_indent ();
-         emit_code oc (fun _ -> Printf.fprintf oc ") ;; block\n");
+         emit_code oc ") ;; block\n";
          dec_indent ())
      | _ ->
         raise (Error (Printf.sprintf "LabelOut mismatch for %s/%s" t out))
