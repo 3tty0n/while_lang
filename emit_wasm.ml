@@ -4,10 +4,21 @@ open Virtual_stack
 
 exception Error of string
 
-let indent = ref 4
+let indent = ref 2
 
-let make_indent oc =
-  List.iter (fun _ -> Printf.fprintf oc " ") (List.init !indent (fun _ -> ()))
+let inc_indent _ =
+    indent := !indent + 2
+
+let dec_indent _ =
+    indent := !indent - 2
+
+let make_indent oc ?(extra=0) =
+  List.iter (fun _ -> Printf.fprintf oc " ")
+    (List.init (!indent + extra) (fun _ -> ()))
+
+let emit_code oc (f : unit -> unit) =
+    make_indent oc ~extra:2;
+    f ()
 
 type env = { mutable globals: (string, unit) Hashtbl.t }
 
@@ -36,42 +47,42 @@ let collect_globals prog =
   g
 
 let emit_instr (oc : out_channel) (ctrl : cframe list ref) (pending_store: string option ref) =
-  let _ = make_indent oc in
   function
-  | Push n      -> Printf.fprintf oc "i32.const %d\n" n
-  | TRUE        -> Printf.fprintf oc "i32.const 1\n"
-  | FALSE       -> Printf.fprintf oc "i32.const 0\n"
-  | NOT         -> Printf.fprintf oc "i32.eqz\n"
+  | Push n      -> emit_code oc (fun _ -> Printf.fprintf oc "i32.const %d\n" n)
+  | TRUE        -> emit_code oc (fun _ -> Printf.fprintf oc "i32.const 1\n")
+  | FALSE       -> emit_code oc (fun _ -> Printf.fprintf oc "i32.const 0\n")
+  | NOT         -> emit_code oc (fun _ -> Printf.fprintf oc "i32.eqz\n")
   | PLUS | MINUS | TIMES | DIV
   | EQ | LT | LE | GT | GE
-  | AND | OR as t -> Printf.fprintf oc "%s\n" (wasm_of_binop t)
-  | RValue x    -> Printf.fprintf oc "global.get $%s\n" x
-  | PRINT       -> Printf.fprintf oc "call $print\n"
-  | LPush x     -> Printf.fprintf oc "global.set $%s\n" x
+  | AND | OR as t -> emit_code oc (fun _ -> Printf.fprintf oc "%s\n" (wasm_of_binop t))
+  | RValue x    -> emit_code oc (fun _ -> Printf.fprintf oc "global.get $%s\n" x)
+  | PRINT       -> emit_code oc (fun _ -> Printf.fprintf oc "call $print\n")
+  | LPush x     -> emit_code oc (fun _ -> Printf.fprintf oc "global.set $%s\n" x)
   | LabelTest (t, out) ->
      ctrl := {test=t; out=out} :: !ctrl;
-     Printf.fprintf oc "(block $%s\n" out;
-     make_indent oc;
-     Printf.fprintf oc "(loop $%s\n" t
+     emit_code oc (fun _ -> Printf.fprintf oc "(block $%s\n" out);
+     inc_indent ();
+     emit_code oc (fun _ -> Printf.fprintf oc "(loop $%s\n" t);
+     inc_indent ()
   | GoFalse out ->
      (* 直前までに cond がスタックにある想定 *)
-     Printf.fprintf oc "i32.eqz\n";
-     make_indent oc;
-     Printf.fprintf oc "br_if $%s\n" out
-  | GoTo t -> Printf.fprintf oc "br $%s\n" t
+     emit_code oc (fun _ -> Printf.fprintf oc "i32.eqz\n");
+     emit_code oc (fun _ -> Printf.fprintf oc "br_if $%s\n" out)
+  | GoTo t -> emit_code oc (fun _ -> Printf.fprintf oc "br $%s\n" t)
   | LabelOut (t, out) ->
      (* スタック整合性を軽く確認（任意） *)
      begin match !ctrl with
      | {test; out=_} :: rest when test = t ->
         ctrl := rest;
-        (Printf.fprintf oc ") ;; loop\n";
-         make_indent oc;
-         Printf.fprintf oc ") ;; block\n")
+        (emit_code oc (fun _ -> Printf.fprintf oc ") ;; loop\n");
+         dec_indent ();
+         emit_code oc (fun _ -> Printf.fprintf oc ") ;; block\n");
+         dec_indent ())
      | _ ->
         raise (Error (Printf.sprintf "LabelOut mismatch for %s/%s" t out))
      end
 
-let compile_expr_subset (oc : out_channel) (prog:t list) : unit =
+let compile (oc : out_channel) (prog : t list) : unit =
   let g = collect_globals prog in
   let pending_store = ref None in
   let ctrl = ref [] in
