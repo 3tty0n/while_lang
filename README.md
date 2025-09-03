@@ -5,7 +5,6 @@ A small language that is compiled to Python bytecode. This language is designed 
 ## Prerequisite
 
 - OCaml >= 4.14
-- Python 2.7 (not Python 3! sorry)
 - `wabt`
 
 ### Install OCaml
