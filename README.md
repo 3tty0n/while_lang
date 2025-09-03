@@ -86,11 +86,15 @@ $ brew install ocaml
 Windows Subsystem Linux 2 (WSL2) の使用を推奨します。その他、 Ocaml for Windows
 という cygwin 拡張があります。
 
+#### OCaml for Windows
+
 [OCaml for Windows](https://fdopen.github.io/opam-repository-mingw/installation/) から
 `64-bit` をクリックして GUI インストーラを使用してインストールしてください。
 cygwin カスタム環境が構築され、cygwin で OCaml が使えるようになります。
 
-また、エディタは各自好きなものを使用してください。オススメは Visual Studio Code です。開発支援ツールが充実しています。
+### エディタ
+
+エディタは各自好きなものを使用してください。オススメは Visual Studio Code です。開発支援ツールが充実しています。
 
 ## 開発の仕方
 
