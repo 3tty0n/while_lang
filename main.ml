@@ -14,12 +14,14 @@ let string name s =
   close_out oc
 
 let main filename =
+  print_endline ("compiling " ^ filename ^ " ...");
   let name = List.nth (String.split_on_char '.' filename) 0 in
   let outname = name ^ ".wat" in
   let ic = open_in filename in
   let oc = open_out outname in
   let l = Lexing.from_channel ic in
   assemble name oc l;
+  print_endline ("compilation succeeded. wrote to " ^ outname);
   close_out oc
 
 let () =
