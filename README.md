@@ -50,8 +50,9 @@ $ make clean
 
 # while_lang
 
-このコンパイラは、While 言語という繰り返し構造を持つ言語のソースコードから Python 2 (not
-3!) のバイトコードへコンパイルします。実験・教育用途で制作しました。
+このコンパイラは、While 言語という繰り返し構造を持つ言語のソースコードから
+WebAssembly 中間表現 (.wat) へコンパイルします。コンパイルされた .wat はブラウザ
+上で実行できます。[専用のアプリケーション](http://www.yuiza.org/wonline)を活用してください。
 
 ファイルの構造は以下の通りです。
 
@@ -61,27 +62,13 @@ $ make clean
 - `virtual_stack.ml`: 仮想スタックマシンの命令セット、命令セットへのコンパイラが
   含まれる
 - `emit_wasm.ml`: WebAssembly 中間表現への変換ルールを定義する。
-- `emit_pyc.ml`: Python のバイトコードへ変換するためのコンパイラが含まれる
-- `assemble_pyc.ml`: While 言語コンパイラでコンパイルされたバイトコードを Python オブジェ
-    クトへ直列化するためのコンパイラ。Python インタプリタでコンパイルコードを実行するために必要。
 
 コンパイルの流れは以下の通りです。
-
-WebAssembly へ変換する場合：
 
 ```
  (while 言語) --- lexing (lexer.mll) --- parsing (parser.mly) --> (構文木、syntax.ml)
              --- virtual_stack.ml    --> (仮想スタックマシン命令列)
              --- emit_wasm.ml        --> (WebAssembly 中間表現)
-```
-
-Python バイトコードへ変換する場合：
-
-```
- (while 言語) --- lexing (lexer.mll) --- parsing (parser.mly) --> (構文木、syntax.ml)
-             --- virtual_stack.ml   --> (仮想スタックマシン命令列)
-             --- emit_pyc.ml        --> (Pythonバイトコード命令列)
-             --- assemble_pyc.ml    --> (Pythonバイトコードオブジェクト)
 ```
 
 ## 開発環境
@@ -108,40 +95,33 @@ cygwin カスタム環境が構築され、cygwin で OCaml が使えるよう�
 
 ## 開発の仕方
 
-コンパイルする
+- コンパイルする
 
-```shell
-$ make
-```
+    ```shell
+    $ make
+    ```
 
-中間コードなどを消す
+- While 言語を `.wat` へコンパイルする
 
-```shell
-$ make clean
-```
+    ```
+    $ ./while_lang test/assign.while
+    ```
 
-While 言語を `.wat` へコンパイルする
+- `.wat` の実行結果を確認する
 
-```
-$ ./while_lang test/assign.while
-```
-
-`.wat` から `.wasm` へコンパイルする
-
-```
-$ wat2wasm test/assign.wat -o test/assign.wasm
-```
+  - [専用アプリケーション](https://www.yuiza.org/wonline)を開き、 `.wat` を読み込ませる。
 
 
-While 言語を `.pyc` へコンパイルする
+- (その他) `.wat` から `.wasm` へコンパイルする
+    - 別途 `wabt` のインストールが必要です
 
-```shell
-$ ./while_lang test/assign.while
-```
+    ```
+    $ wat2wasm test/assign.wat -o test/assign.wasm
+    ```
 
 
-`.pyc` を Python2 インタプリタで実行する
+- (その他) 中間コードなどを消す
 
-```shell
-$ ./interpret.py test/assign.pyc
-```
+    ```shell
+    $ make clean
+    ```
