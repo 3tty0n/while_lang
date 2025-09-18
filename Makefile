@@ -18,7 +18,5 @@ clean_test:
 
 test/%.pyc: test/%.while
 	./$(RESULT) test/$*.while
-test/%.res: test/%.pyc
-	./interpret.py $< > $@
 
 -include OCamlMakefile
