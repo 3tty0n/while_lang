@@ -13,9 +13,17 @@ let string name s =
   assemble "test.while" oc (Lexing.from_string s);
   close_out oc
 
+let remove_suffix s suffix =
+  if String.ends_with ~suffix s then
+    let suffix_len = String.length suffix in
+    let s_len = String.length s in
+    String.sub s 0 (s_len - suffix_len)
+  else
+    s
+
 let main filename =
   print_endline ("compiling " ^ filename ^ " ...");
-  let name = List.nth (String.split_on_char '.' filename) 0 in
+  let name = remove_suffix filename ".while" in
   let outname = name ^ ".wat" in
   let ic = open_in filename in
   let oc = open_out outname in
