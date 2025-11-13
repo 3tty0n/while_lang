@@ -15,7 +15,7 @@ let string name s =
 
 let main filename =
   print_endline ("compiling " ^ filename ^ " ...");
-  let name = (Filename.dirname filename) ^ (Filename.basename filename) ^ ".while" in
+  let name = Filename.remove_extension filename in
   let outname = name ^ ".wat" in
   let ic = open_in filename in
   let oc = open_out outname in
