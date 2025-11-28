@@ -3,7 +3,6 @@
 
 open Syntax
 open Virtual_stack
-open Pycode
 
 (* ANSI color codes for terminal output *)
 let color_reset = "\027[0m"
@@ -372,73 +371,6 @@ let print_stack_code stack_code =
       color_cyan i color_yellow (string_of_stack_instr instr) color_reset
   ) stack_code
 
-(* Pretty print Python bytecode instruction *)
-let string_of_pyc_instr = function
-  | LOAD_NAME i -> Printf.sprintf "LOAD_NAME %d" i
-  | STORE_NAME i -> Printf.sprintf "STORE_NAME %d" i
-  | LOAD_CONST i -> Printf.sprintf "LOAD_CONST %d" i
-  | BINARY_ADD -> "BINARY_ADD"
-  | BINARY_SUBTRACT -> "BINARY_SUBTRACT"
-  | BINARY_MULTIPLY -> "BINARY_MULTIPLY"
-  | BINARY_TRUE_DIVIDE -> "BINARY_TRUE_DIVIDE"
-  | BINARY_AND -> "BINARY_AND"
-  | BINARY_OR -> "BINARY_OR"
-  | UNARY_NOT -> "UNARY_NOT"
-  | COMPARE_OP i ->
-      let op_name = match i with
-        | 0 -> "<"
-        | 1 -> "<="
-        | 2 -> "=="
-        | 4 -> ">"
-        | 5 -> ">="
-        | _ -> "?"
-      in
-      Printf.sprintf "COMPARE_OP %d (%s)" i op_name
-  | JUMP_ABSOLETE i -> Printf.sprintf "JUMP_ABSOLETE %d" i
-  | JUMP_FORWARD i -> Printf.sprintf "JUMP_FORWARD %d" i
-  | POP_JUMP_IF_FALSE i -> Printf.sprintf "POP_JUMP_IF_FALSE %d" i
-  | POP_JUMP_IF_TRUE i -> Printf.sprintf "POP_JUMP_IF_TRUE %d" i
-  | SETUP_LOOP i -> Printf.sprintf "SETUP_LOOP %d" i
-  | POP_BLOCK -> "POP_BLOCK"
-  | PRINT_ITEM -> "PRINT_ITEM"
-  | PRINT_NEWLINE -> "PRINT_NEWLINE"
-  | RETURN_VALUE -> "RETURN_VALUE"
-  | Label_top (test, out) -> Printf.sprintf "LABEL_TOP %s (exit: %s)" test out
-  | Label_out s -> Printf.sprintf "LABEL_OUT %s" s
-  | Jump s -> Printf.sprintf "JUMP %s" s
-  | Jump_if s -> Printf.sprintf "JUMP_IF %s" s
-
-(* Pretty print Python bytecode *)
-let print_python_bytecode bytecode consts names =
-  section_header "STEP 3: Python Bytecode";
-  Printf.printf "%sPython 2 bytecode instructions:%s\n\n" color_green color_reset;
-
-  (* Print constants table *)
-  Printf.printf "%sConstants:%s\n" color_magenta color_reset;
-  List.iteri (fun i c ->
-    let s = match c with
-      | W_Int n -> string_of_int n
-      | W_String s -> Printf.sprintf "\"%s\"" s
-      | W_True -> "True"
-      | W_False -> "False"
-      | W_None -> "None"
-    in
-    Printf.printf "  %d: %s\n" i s
-  ) consts;
-
-  Printf.printf "\n%sNames:%s\n" color_magenta color_reset;
-  List.iteri (fun i name ->
-    match name with
-    | W_String s -> Printf.printf "  %d: %s\n" i s
-    | _ -> ()
-  ) names;
-
-  Printf.printf "\n%sBytecode:%s\n" color_magenta color_reset;
-  List.iteri (fun i instr ->
-    Printf.printf "%s%3d: %s%s%s\n"
-      color_cyan i color_yellow (string_of_pyc_instr instr) color_reset
-  ) bytecode
-
 (* Pretty print WebAssembly instruction *)
 let string_of_wasm_op = function
   | PLUS -> "i32.add"
@@ -502,14 +434,6 @@ let visualize_transformations filename ast stack_code output_format =
   (* Step 3: Show final output based on format *)
   match output_format with
   | "wasm" -> print_wasm_overview stack_code
-  | "pyc" ->
-      (* Compile to Python bytecode *)
-      let (bytecode, varenv, constenv) = Emit_pyc.compile_stack_pyc [] [] [] stack_code in
-      let resolved = Pycode.resolve_label bytecode in
-      (* Extract names and constants from environments *)
-      let names = List.map fst varenv in
-      let consts = List.map fst constenv in
-      print_python_bytecode resolved consts names
   | _ -> ()
 
 (* Summary comparison *)

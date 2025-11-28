@@ -55,7 +55,6 @@ let () =
     Printf.eprintf "  %s <filename.while>                  # Compile to WebAssembly\n" Sys.argv.(0);
     Printf.eprintf "  %s --visualize <filename.while>      # Show transformation steps (WASM)\n" Sys.argv.(0);
     Printf.eprintf "  %s -v <filename.while>               # Short form of --visualize\n" Sys.argv.(0);
-    Printf.eprintf "  %s --visualize-pyc <filename.while>  # Show transformation steps (Python)\n" Sys.argv.(0);
     Printf.eprintf "  %s --dot <filename.while>            # Generate Graphviz DOT file for AST\n" Sys.argv.(0);
     Printf.eprintf "\nExamples:\n";
     Printf.eprintf "  %s test/assign.while\n" Sys.argv.(0);
