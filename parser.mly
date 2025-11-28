@@ -48,7 +48,7 @@ start:
 statement:
 | SKIP { Skip }
 | VARIANT ASSIGN arith { Assign ($1, $3) }
-| BEGIN statements END { Block ($2) }
+| BEGIN statement END { Block ($2) }
 | IF predicate THEN statement ELSE statement { If ($2, $4, $6) }
 | WHILE predicate DO statement { While ($2, $4) }
 | PRINT arith { Print ($2) }
