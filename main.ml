@@ -44,18 +44,30 @@ let visualize_mode filename output_format =
   Visualizer.print_summary ();
   close_in ic
 
+let generate_dot_mode filename =
+  let name = List.nth (String.split_on_char '.' filename) 0 in
+  let ic = open_in filename in
+  let l = Lexing.from_channel ic in
+  let syntax = Parser.start Lexer.token l in
+  let dotfile = name ^ "_ast.dot" in
+  Visualizer.ast_to_dot syntax dotfile;
+  close_in ic
+
 let () =
   let argc = Array.length Sys.argv in
   if argc < 2 then (
     Printf.eprintf "While Lang Compiler\n\n";
     Printf.eprintf "Usage:\n";
-    Printf.eprintf "  %s <filename.while>                # Compile to WebAssembly\n" Sys.argv.(0);
-    Printf.eprintf "  %s --visualize <filename.while>    # Show transformation steps (WASM)\n" Sys.argv.(0);
-    Printf.eprintf "  %s -v <filename.while>             # Short form of --visualize\n" Sys.argv.(0);
-    Printf.eprintf "  %s --visualize-pyc <filename.while> # Show transformation steps (Python)\n" Sys.argv.(0);
+    Printf.eprintf "  %s <filename.while>                  # Compile to WebAssembly\n" Sys.argv.(0);
+    Printf.eprintf "  %s --visualize <filename.while>      # Show transformation steps (WASM)\n" Sys.argv.(0);
+    Printf.eprintf "  %s -v <filename.while>               # Short form of --visualize\n" Sys.argv.(0);
+    Printf.eprintf "  %s --visualize-pyc <filename.while>  # Show transformation steps (Python)\n" Sys.argv.(0);
+    Printf.eprintf "  %s --dot <filename.while>            # Generate Graphviz DOT file for AST\n" Sys.argv.(0);
     Printf.eprintf "\nExamples:\n";
     Printf.eprintf "  %s test/assign.while\n" Sys.argv.(0);
     Printf.eprintf "  %s --visualize test/simple_loop.while\n" Sys.argv.(0);
+    Printf.eprintf "  %s --dot test/loop.while\n" Sys.argv.(0);
+    Printf.eprintf "  dot -Tpng test/loop_ast.dot -o ast.png  # Convert DOT to image\n";
     exit 1
   ) else if argc = 2 then
     (* Simple compilation mode *)
@@ -69,7 +81,9 @@ let () =
         visualize_mode filename "wasm"
     | "--visualize-pyc" | "-vp" ->
         visualize_mode filename "pyc"
+    | "--dot" ->
+        generate_dot_mode filename
     | _ ->
         Printf.eprintf "Unknown flag: %s\n" flag;
-        Printf.eprintf "Use --visualize or -v for visualization mode\n";
+        Printf.eprintf "Use --visualize, --visualize-pyc, or --dot\n";
         exit 1

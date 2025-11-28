@@ -74,11 +74,269 @@ let rec string_of_stmt indent stmt =
         prefix
         (string_of_stmt (indent + 2) s2)
 
+(* Tree-based AST visualization *)
+
+(* Tree drawing characters *)
+let tree_branch = "├── "
+let tree_last = "└── "
+let tree_vert = "│   "
+let tree_space = "    "
+
+(* Visualize arithmetic expression as tree *)
+let rec visualize_arith_tree prefix is_last expr =
+  let connector = if is_last then tree_last else tree_branch in
+  let extension = if is_last then tree_space else tree_vert in
+  match expr with
+  | Var x ->
+      Printf.printf "%s%s%sVar%s: \"%s\"\n" prefix connector color_cyan color_reset x
+  | Num n ->
+      Printf.printf "%s%s%sNum%s: %d\n" prefix connector color_cyan color_reset n
+  | Add (a1, a2) ->
+      Printf.printf "%s%s%sAdd%s (+)\n" prefix connector color_cyan color_reset;
+      visualize_arith_tree (prefix ^ extension) false a1;
+      visualize_arith_tree (prefix ^ extension) true a2
+  | Sub (a1, a2) ->
+      Printf.printf "%s%s%sSub%s (-)\n" prefix connector color_cyan color_reset;
+      visualize_arith_tree (prefix ^ extension) false a1;
+      visualize_arith_tree (prefix ^ extension) true a2
+  | Mul (a1, a2) ->
+      Printf.printf "%s%s%sMul%s (*)\n" prefix connector color_cyan color_reset;
+      visualize_arith_tree (prefix ^ extension) false a1;
+      visualize_arith_tree (prefix ^ extension) true a2
+  | Div (a1, a2) ->
+      Printf.printf "%s%s%sDiv%s (/)\n" prefix connector color_cyan color_reset;
+      visualize_arith_tree (prefix ^ extension) false a1;
+      visualize_arith_tree (prefix ^ extension) true a2
+
+(* Visualize predicate as tree *)
+let rec visualize_pred_tree prefix is_last pred =
+  let connector = if is_last then tree_last else tree_branch in
+  let extension = if is_last then tree_space else tree_vert in
+  match pred with
+  | True ->
+      Printf.printf "%s%s%sTrue%s\n" prefix connector color_magenta color_reset
+  | False ->
+      Printf.printf "%s%s%sFalse%s\n" prefix connector color_magenta color_reset
+  | Not p ->
+      Printf.printf "%s%s%sNot%s\n" prefix connector color_magenta color_reset;
+      visualize_pred_tree (prefix ^ extension) true p
+  | And (p1, p2) ->
+      Printf.printf "%s%s%sAnd%s\n" prefix connector color_magenta color_reset;
+      visualize_pred_tree (prefix ^ extension) false p1;
+      visualize_pred_tree (prefix ^ extension) true p2
+  | Or (p1, p2) ->
+      Printf.printf "%s%s%sOr%s\n" prefix connector color_magenta color_reset;
+      visualize_pred_tree (prefix ^ extension) false p1;
+      visualize_pred_tree (prefix ^ extension) true p2
+  | LT (a1, a2) ->
+      Printf.printf "%s%s%sLessThan%s (<)\n" prefix connector color_magenta color_reset;
+      visualize_arith_tree (prefix ^ extension) false a1;
+      visualize_arith_tree (prefix ^ extension) true a2
+  | LE (a1, a2) ->
+      Printf.printf "%s%s%sLessEqual%s (<=)\n" prefix connector color_magenta color_reset;
+      visualize_arith_tree (prefix ^ extension) false a1;
+      visualize_arith_tree (prefix ^ extension) true a2
+  | EQ (a1, a2) ->
+      Printf.printf "%s%s%sEqual%s (==)\n" prefix connector color_magenta color_reset;
+      visualize_arith_tree (prefix ^ extension) false a1;
+      visualize_arith_tree (prefix ^ extension) true a2
+  | GT (a1, a2) ->
+      Printf.printf "%s%s%sGreaterThan%s (>)\n" prefix connector color_magenta color_reset;
+      visualize_arith_tree (prefix ^ extension) false a1;
+      visualize_arith_tree (prefix ^ extension) true a2
+  | GE (a1, a2) ->
+      Printf.printf "%s%s%sGreaterEqual%s (>=)\n" prefix connector color_magenta color_reset;
+      visualize_arith_tree (prefix ^ extension) false a1;
+      visualize_arith_tree (prefix ^ extension) true a2
+
+(* Visualize statement as tree *)
+let rec visualize_stmt_tree prefix is_last stmt =
+  let connector = if is_last then tree_last else tree_branch in
+  let extension = if is_last then tree_space else tree_vert in
+  match stmt with
+  | Assign (x, a) ->
+      Printf.printf "%s%s%sAssign%s: %s :=\n" prefix connector color_yellow color_reset x;
+      visualize_arith_tree (prefix ^ extension) true a
+  | Skip ->
+      Printf.printf "%s%s%sSkip%s\n" prefix connector color_yellow color_reset
+  | Block s ->
+      Printf.printf "%s%s%sBlock%s\n" prefix connector color_yellow color_reset;
+      visualize_stmt_tree (prefix ^ extension) true s
+  | Seq (s1, s2) ->
+      Printf.printf "%s%s%sSequence%s\n" prefix connector color_yellow color_reset;
+      visualize_stmt_tree (prefix ^ extension) false s1;
+      visualize_stmt_tree (prefix ^ extension) true s2
+  | While (p, s) ->
+      Printf.printf "%s%s%sWhile%s\n" prefix connector color_yellow color_reset;
+      Printf.printf "%s%s%sCondition:%s\n" (prefix ^ extension) tree_branch color_green color_reset;
+      visualize_pred_tree (prefix ^ extension ^ tree_vert) true p;
+      Printf.printf "%s%s%sBody:%s\n" (prefix ^ extension) tree_last color_green color_reset;
+      visualize_stmt_tree (prefix ^ extension ^ tree_space) true s
+  | Print a ->
+      Printf.printf "%s%s%sPrint%s\n" prefix connector color_yellow color_reset;
+      visualize_arith_tree (prefix ^ extension) true a
+  | If (p, s1, s2) ->
+      Printf.printf "%s%s%sIf%s\n" prefix connector color_yellow color_reset;
+      Printf.printf "%s%s%sCondition:%s\n" (prefix ^ extension) tree_branch color_green color_reset;
+      visualize_pred_tree (prefix ^ extension ^ tree_vert) true p;
+      Printf.printf "%s%s%sThen:%s\n" (prefix ^ extension) tree_branch color_green color_reset;
+      visualize_stmt_tree (prefix ^ extension ^ tree_vert) true s1;
+      Printf.printf "%s%s%sElse:%s\n" (prefix ^ extension) tree_last color_green color_reset;
+      visualize_stmt_tree (prefix ^ extension ^ tree_space) true s2
+
 (* Pretty print AST *)
 let print_ast ast =
   section_header "STEP 1: Abstract Syntax Tree (AST)";
   Printf.printf "%sThe parsed program structure:%s\n\n" color_green color_reset;
-  Printf.printf "%s%s%s\n" color_yellow (string_of_stmt 0 ast) color_reset
+
+  (* Show both representations *)
+  Printf.printf "%s%sSource Code Representation:%s\n" color_bold color_blue color_reset;
+  Printf.printf "%s%s%s\n\n" color_yellow (string_of_stmt 0 ast) color_reset;
+
+  Printf.printf "%s%sTree Structure:%s\n" color_bold color_blue color_reset;
+  Printf.printf "%sProgram%s\n" color_bold color_reset;
+  visualize_stmt_tree "" true ast;
+  Printf.printf "\n"
+
+(* Generate Graphviz DOT format for AST *)
+let ast_to_dot ast filename =
+  let oc = open_out filename in
+  let node_counter = ref 0 in
+
+  let new_node () =
+    let n = !node_counter in
+    incr node_counter;
+    Printf.sprintf "node%d" n
+  in
+
+  Printf.fprintf oc "digraph AST {\n";
+  Printf.fprintf oc "  node [shape=box, style=rounded];\n";
+  Printf.fprintf oc "  graph [rankdir=TB];\n\n";
+
+  let rec dot_arith parent expr =
+    let node = new_node () in
+    (match expr with
+    | Var x ->
+        Printf.fprintf oc "  %s [label=\"Var\\n'%s'\", fillcolor=lightblue, style=filled];\n" node x
+    | Num n ->
+        Printf.fprintf oc "  %s [label=\"Num\\n%d\", fillcolor=lightgreen, style=filled];\n" node n
+    | Add (a1, a2) ->
+        Printf.fprintf oc "  %s [label=\"Add (+)\", fillcolor=lightyellow, style=filled];\n" node;
+        ignore (dot_arith node a1);
+        ignore (dot_arith node a2)
+    | Sub (a1, a2) ->
+        Printf.fprintf oc "  %s [label=\"Sub (-)\", fillcolor=lightyellow, style=filled];\n" node;
+        ignore (dot_arith node a1);
+        ignore (dot_arith node a2)
+    | Mul (a1, a2) ->
+        Printf.fprintf oc "  %s [label=\"Mul (*)\", fillcolor=lightyellow, style=filled];\n" node;
+        ignore (dot_arith node a1);
+        ignore (dot_arith node a2)
+    | Div (a1, a2) ->
+        Printf.fprintf oc "  %s [label=\"Div (/)\", fillcolor=lightyellow, style=filled];\n" node;
+        ignore (dot_arith node a1);
+        ignore (dot_arith node a2));
+    Printf.fprintf oc "  %s -> %s;\n" parent node;
+    node
+  in
+
+  let rec dot_pred parent pred =
+    let node = new_node () in
+    (match pred with
+    | True ->
+        Printf.fprintf oc "  %s [label=\"True\", fillcolor=lightpink, style=filled];\n" node
+    | False ->
+        Printf.fprintf oc "  %s [label=\"False\", fillcolor=lightpink, style=filled];\n" node
+    | Not p ->
+        Printf.fprintf oc "  %s [label=\"Not\", fillcolor=orange, style=filled];\n" node;
+        ignore (dot_pred node p)
+    | And (p1, p2) ->
+        Printf.fprintf oc "  %s [label=\"And\", fillcolor=orange, style=filled];\n" node;
+        ignore (dot_pred node p1);
+        ignore (dot_pred node p2)
+    | Or (p1, p2) ->
+        Printf.fprintf oc "  %s [label=\"Or\", fillcolor=orange, style=filled];\n" node;
+        ignore (dot_pred node p1);
+        ignore (dot_pred node p2)
+    | LT (a1, a2) ->
+        Printf.fprintf oc "  %s [label=\"< (LT)\", fillcolor=orange, style=filled];\n" node;
+        ignore (dot_arith node a1);
+        ignore (dot_arith node a2)
+    | LE (a1, a2) ->
+        Printf.fprintf oc "  %s [label=\"<= (LE)\", fillcolor=orange, style=filled];\n" node;
+        ignore (dot_arith node a1);
+        ignore (dot_arith node a2)
+    | EQ (a1, a2) ->
+        Printf.fprintf oc "  %s [label=\"== (EQ)\", fillcolor=orange, style=filled];\n" node;
+        ignore (dot_arith node a1);
+        ignore (dot_arith node a2)
+    | GT (a1, a2) ->
+        Printf.fprintf oc "  %s [label=\"> (GT)\", fillcolor=orange, style=filled];\n" node;
+        ignore (dot_arith node a1);
+        ignore (dot_arith node a2)
+    | GE (a1, a2) ->
+        Printf.fprintf oc "  %s [label=\">= (GE)\", fillcolor=orange, style=filled];\n" node;
+        ignore (dot_arith node a1);
+        ignore (dot_arith node a2));
+    Printf.fprintf oc "  %s -> %s;\n" parent node;
+    node
+  in
+
+  let rec dot_stmt parent stmt =
+    let node = new_node () in
+    (match stmt with
+    | Assign (x, a) ->
+        Printf.fprintf oc "  %s [label=\"Assign\\n%s :=\", fillcolor=wheat, style=filled];\n" node x;
+        ignore (dot_arith node a)
+    | Skip ->
+        Printf.fprintf oc "  %s [label=\"Skip\", fillcolor=wheat, style=filled];\n" node
+    | Block s ->
+        Printf.fprintf oc "  %s [label=\"Block\", fillcolor=wheat, style=filled];\n" node;
+        ignore (dot_stmt node s)
+    | Seq (s1, s2) ->
+        Printf.fprintf oc "  %s [label=\"Sequence (;)\", fillcolor=wheat, style=filled];\n" node;
+        ignore (dot_stmt node s1);
+        ignore (dot_stmt node s2)
+    | While (p, s) ->
+        Printf.fprintf oc "  %s [label=\"While\", fillcolor=lightcyan, style=filled];\n" node;
+        let cond_label = new_node () in
+        Printf.fprintf oc "  %s [label=\"Condition\", shape=plaintext];\n" cond_label;
+        Printf.fprintf oc "  %s -> %s;\n" node cond_label;
+        ignore (dot_pred cond_label p);
+        let body_label = new_node () in
+        Printf.fprintf oc "  %s [label=\"Body\", shape=plaintext];\n" body_label;
+        Printf.fprintf oc "  %s -> %s;\n" node body_label;
+        ignore (dot_stmt body_label s)
+    | Print a ->
+        Printf.fprintf oc "  %s [label=\"Print\", fillcolor=wheat, style=filled];\n" node;
+        ignore (dot_arith node a)
+    | If (p, s1, s2) ->
+        Printf.fprintf oc "  %s [label=\"If-Then-Else\", fillcolor=lightcyan, style=filled];\n" node;
+        let cond_label = new_node () in
+        Printf.fprintf oc "  %s [label=\"Condition\", shape=plaintext];\n" cond_label;
+        Printf.fprintf oc "  %s -> %s;\n" node cond_label;
+        ignore (dot_pred cond_label p);
+        let then_label = new_node () in
+        Printf.fprintf oc "  %s [label=\"Then\", shape=plaintext];\n" then_label;
+        Printf.fprintf oc "  %s -> %s;\n" node then_label;
+        ignore (dot_stmt then_label s1);
+        let else_label = new_node () in
+        Printf.fprintf oc "  %s [label=\"Else\", shape=plaintext];\n" else_label;
+        Printf.fprintf oc "  %s -> %s;\n" node else_label;
+        ignore (dot_stmt else_label s2));
+    Printf.fprintf oc "  %s -> %s;\n" parent node;
+    node
+  in
+
+  let root = new_node () in
+  Printf.fprintf oc "  %s [label=\"Program\", fillcolor=gold, style=filled];\n" root;
+  ignore (dot_stmt root ast);
+
+  Printf.fprintf oc "}\n";
+  close_out oc;
+  Printf.printf "%sGraphviz DOT file generated: %s%s%s\n" color_green color_yellow filename color_reset;
+  Printf.printf "To generate an image, run: %sdot -Tpng %s -o ast.png%s\n"
+    color_cyan filename color_reset
 
 (* Pretty print stack machine instruction *)
 let string_of_stack_instr = function
